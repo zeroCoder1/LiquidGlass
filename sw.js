@@ -1,8 +1,10 @@
 // Minimal offline-first service worker for the Liquid Glass PWA / TV app shell.
-const CACHE = 'liquid-glass-v5';
+const CACHE = 'liquid-glass-v6';
 const ASSETS = [
   './',
   './index.html',
+  './playground.html',
+  './glassflix.html',
   './demo.html',
   './manifest.webmanifest',
   './icon.svg',

@@ -4,308 +4,205 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b1020" />
-  <title>Liquid Glass — Playground</title>
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <title>Liquid Glass — a refracting glass material for the web</title>
   <style>
-    :root { color-scheme: dark; font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+    :root { color-scheme: dark; font-family: "Sora","Avenir Next","Segoe UI",system-ui,sans-serif; --ink:#f2f6ff; --muted:#c7d2ea; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: #05070f; color: #eef; overflow: hidden; }
+    html, body { margin: 0; height: 100%; background: #05070f; color: var(--ink); }
+    a { color: inherit; text-decoration: none; }
 
-    #stage {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-    }
-    /* The visible background AND the refraction source are the same canvas. */
-    #bg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
+    #stage { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+    #stage::-webkit-scrollbar { width: 0; }
+    #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+
+    #ui {
+      position: relative; z-index: 2; min-height: 100%;
+      display: flex; flex-direction: column; gap: clamp(18px, 3.4vh, 34px);
+      padding: clamp(16px, 3vw, 26px) clamp(16px, 4vw, 40px) 40px;
+      max-width: 1120px; margin: 0 auto;
     }
 
-    /* ---- Control panel ---- */
-    #panel {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      width: 300px;
-      max-height: calc(100dvh - 32px);
-      overflow: auto;
-      padding: 14px 16px 18px;
-      border-radius: 16px;
-      background: rgba(14, 18, 34, 0.72);
-      backdrop-filter: blur(18px) saturate(1.4);
-      -webkit-backdrop-filter: blur(18px) saturate(1.4);
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-      z-index: 10;
-      font-size: 12px;
-    }
-    #panel h1 { font-size: 14px; margin: 2px 0 12px; letter-spacing: .3px; }
-    #panel .mode { opacity: .6; font-weight: 400; font-size: 11px; }
-    .ctrl { margin: 9px 0; }
-    .ctrl label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-    .ctrl .name { font-weight: 600; }
-    .ctrl .val { font-variant-numeric: tabular-nums; opacity: .8; min-width: 46px; text-align: right; }
-    .ctrl .doc { display: block; opacity: .5; font-size: 10.5px; margin-top: 1px; line-height: 1.3; }
-    input[type=range] { width: 100%; margin: 5px 0 0; accent-color: #6ea8ff; }
-    .row { display: flex; align-items: center; gap: 8px; }
-    .row input[type=checkbox] { accent-color: #6ea8ff; width: 16px; height: 16px; }
-    select { width: 100%; margin-top: 4px; background: #10162c; color: #eef; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 5px; }
-    .actions { display: flex; gap: 8px; margin-top: 12px; }
-    .actions button { flex: 1; padding: 7px; border-radius: 9px; border: 1px solid rgba(255,255,255,.14); background: #17203c; color: #eef; cursor: pointer; }
-    .actions button:hover { background: #22305a; }
+    /* Content sits in normal flow (drives the slot's height); a WebGL glass
+       panel is inserted behind it, filling the slot via inset:0. */
+    .slot { position: relative; }
+    .slot > .fill { position: relative; z-index: 1; }
 
-    .glass-label { display: flex; align-items: center; justify-content: center; height: 100%;
-      font-weight: 600; font-size: 18px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.4);
-      user-select: none; letter-spacing: .3px; }
-    .hint { position: fixed; left: 16px; bottom: 14px; z-index: 10; opacity: .5; font-size: 11px; }
+    #nav .fill { display: flex; align-items: center; height: 60px; padding: 0 18px; gap: 18px; }
+    .brand { font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 9px; }
+    .brand .dot { width: 15px; height: 15px; border-radius: 5px; background: linear-gradient(135deg,#ff8a5c,#7a5cff 55%,#2ec5ff); box-shadow: 0 2px 10px rgba(122,92,255,.6); }
+    .nav-links { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+    .nav-links a { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; opacity: .92; }
+    .nav-links a:hover { background: rgba(255,255,255,.14); }
+
+    .hero { display: grid; place-items: center; flex: 1; min-height: 42vh; }
+    #hero-card { width: min(760px, 100%); }
+    #hero-card .fill { padding: clamp(26px, 5vw, 52px); text-align: center; }
+    .kicker { text-transform: uppercase; letter-spacing: 3px; font-size: 11px; font-weight: 800; color: #ffc0d6; }
+    #hero-card h1 { margin: 14px 0 12px; font-size: clamp(34px, 7vw, 70px); line-height: .96; letter-spacing: -.02em; }
+    #hero-card h1 span { background: linear-gradient(100deg,#fff,#b9d0ff 55%,#ffb8d0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    #hero-card p { margin: 0 auto; max-width: 52ch; color: var(--muted); font-size: clamp(14px, 1.6vw, 16px); line-height: 1.55; }
+    #hero-card code { background: rgba(255,255,255,.14); border-radius: 5px; padding: 1px 6px; font-size: .92em; }
+    .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+    .btn { font-weight: 700; font-size: 14px; padding: 12px 22px; border-radius: 13px; border: 1px solid rgba(255,255,255,.24); cursor: pointer; transition: transform .15s; }
+    .btn.primary { background: linear-gradient(135deg,#ff8a5c,#ff5db1); border-color: transparent; box-shadow: 0 10px 26px rgba(255,93,177,.35); }
+    .btn:hover { transform: translateY(-1px); }
+
+    .features { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(10px, 1.6vw, 16px); }
+    @media (max-width: 860px){ .features { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 460px){ .features { grid-template-columns: 1fr; } }
+    .card .fill { min-height: 172px; padding: 18px; display: flex; flex-direction: column; gap: 8px; height: 100%; }
+    .card .ico { font-size: 24px; }
+    .card h3 { margin: 4px 0 0; font-size: 16px; }
+    .card p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+    .card .go { margin-top: auto; font-size: 12px; font-weight: 700; color: #cfe0ff; }
+    .card:hover .go { color: #fff; }
+
+    .foot { text-align: center; color: var(--muted); font-size: 12px; opacity: .82; padding-top: 4px; }
+    .foot code { background: rgba(255,255,255,.1); border-radius: 5px; padding: 1px 6px; }
+
+    .badge { position: fixed; right: 14px; bottom: 12px; z-index: 3; font-size: 11px; color: var(--muted);
+      background: rgba(8,11,22,.6); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 5px 11px;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .badge b { color: #9fe6c0; }
   </style>
 </head>
 <body>
   <div id="stage">
     <canvas id="bg"></canvas>
-  </div>
+    <div id="ui">
+      <nav class="slot" id="nav">
+        <div class="fill">
+          <div class="brand"><span class="dot"></span>LiquidGlass</div>
+          <div class="nav-links">
+            <a href="./playground.html">Playground</a>
+            <a href="./glassflix.html">Glassflix</a>
+            <a href="./demo.html">Guide</a>
+            <a href="https://github.com/zeroCoder1/LiquidGlass" target="_blank" rel="noopener">GitHub</a>
+          </div>
+        </div>
+      </nav>
 
-  <div id="panel">
-    <h1>Liquid&nbsp;Glass <span class="mode" id="mode"></span></h1>
-    <div id="controls"></div>
-    <div class="actions">
-      <button id="reset">Reset</button>
-      <button id="video">Video BG</button>
+      <main class="hero">
+        <div class="slot" id="hero-card">
+          <div class="fill">
+            <div class="kicker">Refracting glass for the web</div>
+            <h1>Real glass, <span>rendered live.</span></h1>
+            <p>Per-pixel refraction, chromatic aberration and a bevelled lens — over a texture you
+               supply, or over the live page with one call to <code>glassify()</code>.</p>
+            <div class="cta">
+              <a class="btn primary" href="./playground.html">Open the playground</a>
+              <a class="btn" href="./demo.html">Read the guide</a>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <section class="features">
+        <a class="slot card" id="f1" href="./playground.html">
+          <div class="fill"><div class="ico">🔮</div><h3>Real refraction</h3>
+            <p>Bevel normals, chromatic aberration, specular and Fresnel — on the GPU.</p>
+            <div class="go">Tune it live →</div></div>
+        </a>
+        <a class="slot card" id="f2" href="./glassflix.html">
+          <div class="fill"><div class="ico">🪄</div><h3>glassify() anything</h3>
+            <p>Turn existing DOM into glass in place; it refracts the live page behind it.</p>
+            <div class="go">See Glassflix →</div></div>
+        </a>
+        <a class="slot card" id="f3" href="./demo.html">
+          <div class="fill"><div class="ico">🧩</div><h3>Runs anywhere</h3>
+            <p>React, vanilla HTML, PWAs, and HTML5 TV / webOS / Tizen — one API.</p>
+            <div class="go">How to use →</div></div>
+        </a>
+        <a class="slot card" id="f4" href="https://github.com/zeroCoder1/LiquidGlass" target="_blank" rel="noopener">
+          <div class="fill"><div class="ico">⚡</div><h3>Open source</h3>
+            <p>One shared context, one draw call for hundreds of panels. MIT licensed.</p>
+            <div class="go">View on GitHub →</div></div>
+        </a>
+      </section>
+
+      <div class="foot">
+        Two renderers, one API. WebGL for a texture · <code>glassify()</code> for live DOM.
+        Ships as ESM, CommonJS and a plain <code>&lt;script&gt;</code> for React, PWAs and HTML5 TV.
+      </div>
     </div>
-    <div class="actions">
-      <button id="stress">Spawn ×500</button>
-    </div>
-    <div class="ctrl" style="margin-top:6px"><span class="doc" id="stats"></span></div>
+    <div class="badge">renderer: <b id="badgeTier">…</b></div>
   </div>
-  <div class="hint">Drag the pill when “floating” is on. Hover/press when “button” is on.</div>
 
   <script type="module">
-    import { LiquidGlass, PARAM_DEFS } from './src/liquid-glass.js';
+    import { LiquidGlass } from './src/liquid-glass.js';
 
-    // ---- Procedural background (no external assets, offline-friendly) --------
+    const stage = document.getElementById('stage');
     const bg = document.getElementById('bg');
-    const bctx = bg.getContext('2d');
+    const glasses = [];
+
+    const BASE = {
+      refraction: 0.62, chromAberration: 0.07, edgeHighlight: 0.42,
+      specular: 0.6, fresnel: 1.15, blurAmount: 0.06, tintStrength: 0.06,
+      cornerRadius: 22, zRadius: 18, shadowSpread: 22, shadowOpacity: 0.34,
+    };
+
     function drawBackground() {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const w = window.innerWidth, h = window.innerHeight;
-      bg.width = Math.round(w * dpr);
-      bg.height = Math.round(h * dpr);
-      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = bg.clientWidth || window.innerWidth;
+      const h = bg.clientHeight || window.innerHeight;
+      bg.width = Math.round(w * dpr); bg.height = Math.round(h * dpr);
+      const c = bg.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const g = bctx.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, '#ff7a59');
-      g.addColorStop(0.4, '#7a5cff');
-      g.addColorStop(0.7, '#2ec5ff');
-      g.addColorStop(1, '#0b2a4a');
-      bctx.fillStyle = g;
-      bctx.fillRect(0, 0, w, h);
+      const g = c.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#ff8a5c'); g.addColorStop(0.4, '#7a5cff');
+      g.addColorStop(0.72, '#2ec5ff'); g.addColorStop(1, '#0b2a4a');
+      c.fillStyle = g; c.fillRect(0, 0, w, h);
 
-      // Bright blobs to make refraction obvious.
-      const blobs = [['#ffd36e', .55], ['#ff5db1', .5], ['#5effc8', .45], ['#ffffff', .35]];
-      blobs.forEach(([c, a], i) => {
-        const rg = bctx.createRadialGradient(
-          w * (0.2 + 0.22 * i), h * (0.7 - 0.15 * i), 0,
-          w * (0.2 + 0.22 * i), h * (0.7 - 0.15 * i), Math.min(w, h) * 0.4);
-        rg.addColorStop(0, `${c}${Math.round(a * 255).toString(16).padStart(2, '0')}`);
-        rg.addColorStop(1, `${c}00`);
-        bctx.fillStyle = rg;
-        bctx.fillRect(0, 0, w, h);
-      });
+      [['#ffd36e', .5, .18, .22], ['#ff5db1', .5, .82, .28], ['#5effc8', .4, .6, .92]]
+        .forEach(([col, a, fx, fy]) => {
+          const rg = c.createRadialGradient(w * fx, h * fy, 0, w * fx, h * fy, Math.min(w, h) * 0.55);
+          rg.addColorStop(0, col + Math.round(a * 255).toString(16).padStart(2, '0'));
+          rg.addColorStop(1, col + '00');
+          c.fillStyle = rg; c.fillRect(0, 0, w, h);
+        });
 
-      // Crisp grid so distortion / chromatic aberration reads clearly.
-      bctx.strokeStyle = 'rgba(255,255,255,0.22)';
-      bctx.lineWidth = 1;
-      const step = 56;
-      bctx.beginPath();
-      for (let x = 0; x <= w; x += step) { bctx.moveTo(x, 0); bctx.lineTo(x, h); }
-      for (let y = 0; y <= h; y += step) { bctx.moveTo(0, y); bctx.lineTo(w, y); }
-      bctx.stroke();
-
-      bctx.fillStyle = 'rgba(255,255,255,0.9)';
-      bctx.font = '700 64px system-ui, sans-serif';
-      bctx.fillText('LIQUID', 60, h * 0.35);
-      bctx.fillText('GLASS', 60, h * 0.35 + 72);
+      c.strokeStyle = 'rgba(255,255,255,.13)'; c.lineWidth = 1; c.beginPath();
+      for (let x = 0; x <= w; x += 54) { c.moveTo(x, 0); c.lineTo(x, h); }
+      for (let y = 0; y <= h; y += 54) { c.moveTo(0, y); c.lineTo(w, y); }
+      c.stroke();
     }
+
+    // Insert a WebGL glass panel BEHIND the slot's flow content. inset:0 makes
+    // it fill the content-driven height, so nothing needs an explicit size.
+    function mount(slot, opts) {
+      const glass = new LiquidGlass({ stage, background: bg, renderer: 'webgl', ...BASE, ...opts });
+      const el = glass.element;
+      el.style.position = 'absolute';
+      // Fill the slot via all four offsets (overrides the constructor's left/top;
+      // the `inset` shorthand didn't reliably expand across the longhands here).
+      el.style.top = el.style.right = el.style.bottom = el.style.left = '0';
+      el.style.width = el.style.height = '';
+      el.style.zIndex = '0';
+      slot.insertBefore(el, slot.firstChild);
+      glasses.push(glass);
+      return glass;
+    }
+
     drawBackground();
 
-    // ---- The glass panel ----------------------------------------------------
-    const stage = document.getElementById('stage');
-    const glass = new LiquidGlass({
-      stage,
-      background: bg,        // provided texture = the same canvas we display
-      dynamicCanvas: false,
-      width: 340,
-      height: 130,
-      x: Math.round(window.innerWidth * 0.32),
-      y: Math.round(window.innerHeight * 0.42),
-    });
-    stage.appendChild(glass.element);
-    const label = document.createElement('div');
-    label.className = 'glass-label';
-    label.textContent = 'Liquid Glass';
-    glass.content.appendChild(label);
+    mount(document.getElementById('nav'), { cornerRadius: 18, refraction: 0.5, blurAmount: 0.12, button: true });
+    mount(document.getElementById('hero-card'), { cornerRadius: 30, refraction: 0.66, blurAmount: 0.05, edgeHighlight: 0.5 });
+    ['f1', 'f2', 'f3', 'f4'].forEach((id) =>
+      mount(document.getElementById(id), { cornerRadius: 20, button: true }));
 
-    document.getElementById('mode').textContent = '· ' + glass.mode;
+    document.getElementById('badgeTier').textContent = `${glasses[0].mode} · ${glasses[0].tier}`;
 
-    // Redraw + refresh on resize.
-    window.addEventListener('resize', () => {
+    let rz;
+    function refresh() {
       drawBackground();
-      glass.setBackground(bg); // re-upload the shared texture into the pool
-    });
-
-    // ---- Build the control panel from PARAM_DEFS ----------------------------
-    const controls = document.getElementById('controls');
-    const inputs = {};
-
-    for (const [key, def] of Object.entries(PARAM_DEFS)) {
-      const wrap = document.createElement('div');
-      wrap.className = 'ctrl';
-
-      if (def.type === 'number') {
-        const step = (def.max - def.min) <= 4 ? 0.01 : 1;
-        wrap.innerHTML =
-          `<label><span class="name">${key}</span><span class="val" id="v-${key}"></span></label>
-           <input type="range" min="${def.min}" max="${def.max}" step="${step}" value="${def.default}" id="i-${key}">
-           <span class="doc">${def.doc}</span>`;
-        controls.appendChild(wrap);
-        const input = wrap.querySelector('input');
-        const val = wrap.querySelector('.val');
-        const show = () => { val.textContent = Number(input.value).toFixed(step < 1 ? 2 : 0); };
-        show();
-        input.addEventListener('input', () => { glass.set({ [key]: input.value }); show(); });
-        inputs[key] = { input, show };
-      } else if (def.type === 'boolean') {
-        wrap.innerHTML =
-          `<label class="row"><input type="checkbox" id="i-${key}" ${def.default ? 'checked' : ''}>
-           <span class="name">${key}</span></label><span class="doc">${def.doc}</span>`;
-        controls.appendChild(wrap);
-        const input = wrap.querySelector('input');
-        input.addEventListener('change', () => glass.set({ [key]: input.checked }));
-        inputs[key] = { input };
-      } else if (def.type === 'enum') {
-        wrap.innerHTML =
-          `<label><span class="name">${key}</span></label>
-           <select id="i-${key}">${def.values.map((v) =>
-             `<option value="${v}" ${v === def.default ? 'selected' : ''}>${v}</option>`).join('')}</select>
-           <span class="doc">${def.doc}</span>`;
-        controls.appendChild(wrap);
-        const input = wrap.querySelector('select');
-        input.addEventListener('change', () => glass.set({ [key]: Number(input.value) }));
-        inputs[key] = { input };
-      }
+      glasses.forEach((g) => { g.setBackground(bg); g.set({}); });
     }
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(refresh, 120); });
+    window.addEventListener('load', refresh);
+    stage.addEventListener('scroll', () => glasses.forEach((g) => g.set({})), { passive: true });
 
-    // ---- Reset + video-background demo --------------------------------------
-    document.getElementById('reset').addEventListener('click', () => {
-      for (const [key, def] of Object.entries(PARAM_DEFS)) {
-        const c = inputs[key];
-        if (def.type === 'boolean') c.input.checked = def.default;
-        else c.input.value = def.default;
-        c.show?.();
-        glass.set({ [key]: def.default });
-      }
-    });
-
-    let video;
-    document.getElementById('video').addEventListener('click', async (e) => {
-      const btn = e.currentTarget;
-      if (video) { // toggle back to procedural canvas
-        video.pause();
-        glass.options.dynamicCanvas = false;
-        glass.setBackground(bg);
-        // keep displaying canvas
-        bg.style.display = 'block';
-        video = null;
-        btn.textContent = 'Video BG';
-        return;
-      }
-      video = document.createElement('video');
-      video.muted = true; video.loop = true; video.playsInline = true;
-      video.crossOrigin = 'anonymous';
-      // Small looping gradient video generated on a canvas -> captureStream (offline).
-      const vc = document.createElement('canvas');
-      vc.width = window.innerWidth; vc.height = window.innerHeight;
-      const vctx = vc.getContext('2d');
-      let t = 0;
-      (function paint() {
-        t += 0.02;
-        const g = vctx.createLinearGradient(0, 0, vc.width, vc.height);
-        g.addColorStop(0, `hsl(${(t * 40) % 360} 90% 55%)`);
-        g.addColorStop(1, `hsl(${(t * 40 + 120) % 360} 90% 45%)`);
-        vctx.fillStyle = g; vctx.fillRect(0, 0, vc.width, vc.height);
-        for (let i = 0; i < 6; i++) {
-          vctx.fillStyle = `hsla(${(t * 60 + i * 60) % 360} 90% 70% / .5)`;
-          vctx.beginPath();
-          vctx.arc(vc.width * (0.5 + 0.4 * Math.sin(t + i)), vc.height * (0.5 + 0.4 * Math.cos(t * 1.3 + i)), 120, 0, 7);
-          vctx.fill();
-        }
-        requestAnimationFrame(paint);
-      })();
-      // Use the animated canvas directly as a dynamic texture (simpler than captureStream).
-      bg.style.display = 'none';
-      vc.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
-      stage.insertBefore(vc, bg);
-      glass.options.dynamicCanvas = true;
-      glass.setBackground(vc);
-      video = { pause() { vc.remove(); bg.style.display = 'block'; } };
-      btn.textContent = 'Static BG';
-    });
-
-    // ---- Stress test: many glass CTAs share ONE context + one draw call -----
-    const stressBtn = document.getElementById('stress');
-    const statsEl = document.getElementById('stats');
-    let swarm = [];
-    stressBtn.addEventListener('click', () => {
-      if (swarm.length) {
-        swarm.forEach((g) => g.destroy());
-        swarm = [];
-        stressBtn.textContent = 'Spawn ×500';
-        statsEl.textContent = '';
-        return;
-      }
-      const N = 500;
-      for (let i = 0; i < N; i++) {
-        const w = 70 + Math.random() * 60;
-        const h = 34 + Math.random() * 26;
-        const g = new LiquidGlass({
-          stage,
-          background: bg,
-          width: Math.round(w),
-          height: Math.round(h),
-          x: Math.round(Math.random() * (window.innerWidth - w - 320)),
-          y: Math.round(Math.random() * (window.innerHeight - h)),
-          cornerRadius: Math.min(w, h) / 2,
-          zRadius: 18,
-          refraction: 0.5,
-          chromAberration: 0.08,
-          fresnel: 1,
-          button: true,
-        });
-        stage.appendChild(g.element);
-        swarm.push(g);
-      }
-      stressBtn.textContent = 'Clear swarm';
-    });
-
-    // Lightweight FPS meter (only meaningful while something animates/interacts).
-    let frames = 0, last = performance.now();
-    (function meter(now) {
-      frames++;
-      if (now - last >= 500) {
-        const fps = Math.round((frames * 1000) / (now - last));
-        const count = 1 + swarm.length;
-        statsEl.textContent = `${count} panel${count > 1 ? 's' : ''} · ~${fps} fps`;
-        frames = 0; last = now;
-      }
-      requestAnimationFrame(meter);
-    })(performance.now());
-
-    // ---- PWA service worker -------------------------------------------------
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
     }
