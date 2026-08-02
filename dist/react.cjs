@@ -1,4 +1,5 @@
 /*! liquid-glass — MIT licensed. https://github.com/zeroCoder1/LiquidGlass */
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
