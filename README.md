@@ -1,4 +1,6 @@
 # Liquid Glass
+[![forthebadge](https://forthebadge.com/badges/it-works-why.svg)](https://zerocoder1.github.io/LiquidGlass/)
+[![forthebadge](https://forthebadge.com/badges/you-didnt-ask-for-this.svg)](https://zerocoder1.github.io/LiquidGlass/playground.html)
 
 [![npm](https://img.shields.io/npm/v/@zerocoder1/liquid-glass.svg)](https://www.npmjs.com/package/@zerocoder1/liquid-glass)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -247,6 +249,5 @@ the glass a `background` texture and use the WebGL renderer.
   independently of the stage, trigger a redraw on scroll — e.g.
   `el.addEventListener('scroll', () => glass.set({}))`.
 
-## License
 
-MIT — see [LICENSE](LICENSE).
+[![forthebadge](https://forthebadge.com/badges/license-mit.svg)](LICENSE)
