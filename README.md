@@ -1,10 +1,12 @@
-# Liquid Glass
+![Liquid Glass Preview Top](assests/Screenshot%202026-08-03%20at%2012.02.44%E2%80%AFAM.png)
 
 A refracting glass material for the web. Two renderers, one API. Ships as ESM,
 CommonJS, and a plain-`<script>` global — so it drops into a React app, a
 vanilla HTML page, a PWA, or an HTML5 TV / webOS / Tizen set-top box.
 
 ### ▶ [See it live → zerocoder1.github.io/LiquidGlass](https://zerocoder1.github.io/LiquidGlass/)
+
+
 
 The home page shows the effect and links to the interactive playground, the
 implementation guide, and the demos.
@@ -244,3 +246,5 @@ the glass a `background` texture and use the WebGL renderer.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+![Liquid Glass Preview Bottom](assests/Screenshot%202026-08-03%20at%2012.03.23%E2%80%AFAM.png)
