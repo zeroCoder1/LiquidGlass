@@ -162,8 +162,8 @@ glass.content;   // slot for foreground content (labels, icons)
 glass.mode;      // 'webgl' | 'dom'
 glass.tier;      // 'webgl' | 'displacement' | 'blur' | 'flat'
 
-// Adopt existing DOM. Returns LiquidGlass[].
-const panels = glassify('.card', { /* params */, keepBackground: false });
+// Adopt existing DOM. Returns LiquidGlass[]. Accepts the same params.
+const panels = glassify('.card', { refraction: 0.6, keepBackground: false });
 
 // Probe capabilities before you commit — e.g. to pick a background strategy.
 detectDomCapabilities(); // { blur, displacement, tier }
