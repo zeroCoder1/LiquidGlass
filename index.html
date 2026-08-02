@@ -102,7 +102,7 @@
                supply, or over the live page with one call to <code>glassify()</code>.</p>
             <div class="cta">
               <a class="btn primary" href="./playground.html">Open the playground</a>
-              <a class="btn" href="./demo.html">Read the guide</a>
+              <a class="btn primary" href="./demo.html">Read the guide</a>
             </div>
           </div>
         </div>
@@ -152,10 +152,20 @@
     // zRadius-wide band from the edge, so a large panel needs a large zRadius or
     // its flat centre shows no bending at all. These are sized per panel below.
     const BASE = {
-      refraction: 0.85, chromAberration: 0.18, edgeHighlight: 0.36,
-      specular: 0.5, fresnel: 1.1, blurAmount: 0.0, tintStrength: 0.03,
-      distortion: 0.05,          // gentle liquid shimmer
-      cornerRadius: 22, zRadius: 48, shadowSpread: 22, shadowOpacity: 0.34,
+      blurAmount: 0,
+      refraction: 0.69,
+      chromAberration: 0.09,
+      edgeHighlight: 0.05,
+      specular: 0.31,
+      fresnel: 1.0,
+      distortion: 0,
+      cornerRadius: 30,
+      zRadius: 38,
+      opacity: 1,
+      saturation: 0,
+      tintStrength: 0,
+      brightness: 0,
+      shadowOpacity: 0,
     };
 
     const wall = document.createElement('canvas'); // gradient + grid + wordmark, drawn per size
@@ -179,7 +189,7 @@
       // playground) which is what makes the refraction obvious.
       c.save();
       c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillStyle = 'rgba(255,255,255,0.11)';
+      c.fillStyle = '#ffffff';
       c.font = `800 ${Math.round(DH * 0.19)}px "Sora", system-ui, sans-serif`;
       c.fillText('LIQUID', DW / 2, DH * 0.4);
       c.fillText('GLASS', DW / 2, DH * 0.62);
@@ -237,10 +247,10 @@
 
     // zRadius scaled to each panel so the lens curvature covers a real fraction
     // of it (a thin nav bar, a big domed hero, medium cards).
-    mount(document.getElementById('nav'), { cornerRadius: 22, zRadius: 28, refraction: 0.72, blurAmount: 0.03, button: true });
-    mount(document.getElementById('hero-card'), { cornerRadius: 30, zRadius: 170, refraction: 0.9, edgeHighlight: 0.42 });
+    mount(document.getElementById('nav'), { button: true });
+    mount(document.getElementById('hero-card'), {});
     ['f1', 'f2', 'f3', 'f4'].forEach((id) =>
-      mount(document.getElementById(id), { cornerRadius: 20, zRadius: 60, button: true }));
+      mount(document.getElementById(id), { button: true }));
 
     document.getElementById('badgeTier').textContent = `${glasses[0].mode} · ${glasses[0].tier}`;
 
