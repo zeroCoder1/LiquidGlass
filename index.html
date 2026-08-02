@@ -7,59 +7,58 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <title>Liquid Glass — a refracting glass material for the web</title>
   <style>
-    :root { color-scheme: dark; font-family: "Sora","Avenir Next","Segoe UI",system-ui,sans-serif; --ink:#f2f6ff; --muted:#c7d2ea; }
+    :root { color-scheme: dark; font-family: "Sora","Avenir Next","Segoe UI",system-ui,sans-serif; --ink:#f2f6ff; --muted:#d4ddf0; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: #05070f; color: var(--ink); }
+    html, body { margin: 0; height: 100%; background: #05070f; color: var(--ink); overflow: hidden; }
     a { color: inherit; text-decoration: none; }
 
-    #stage { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
-    #stage::-webkit-scrollbar { width: 0; }
-    #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+    /* Fixed, single-viewport hero — no scrolling, so the WebGL overlay stays
+       locked to the wallpaper and the glass never detaches on scroll. */
+    #stage { position: fixed; inset: 0; overflow: hidden; }
+    #bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 
     #ui {
-      position: relative; z-index: 2; min-height: 100%;
-      display: flex; flex-direction: column; gap: clamp(18px, 3.4vh, 34px);
-      padding: clamp(16px, 3vw, 26px) clamp(16px, 4vw, 40px) 40px;
+      position: relative; z-index: 2; height: 100dvh;
+      display: flex; flex-direction: column; gap: clamp(14px, 2.6vh, 26px);
+      padding: clamp(14px, 2.6vh, 24px) clamp(16px, 4vw, 40px);
       max-width: 1120px; margin: 0 auto;
     }
 
-    /* Content sits in normal flow (drives the slot's height); a WebGL glass
-       panel is inserted behind it, filling the slot via inset:0. */
     .slot { position: relative; }
     .slot > .fill { position: relative; z-index: 1; }
 
-    #nav .fill { display: flex; align-items: center; height: 60px; padding: 0 18px; gap: 18px; }
+    #nav { flex: 0 0 auto; }
+    #nav .fill { display: flex; align-items: center; height: 58px; padding: 0 18px; gap: 18px; }
     .brand { font-weight: 800; font-size: 18px; display: flex; align-items: center; gap: 9px; }
     .brand .dot { width: 15px; height: 15px; border-radius: 5px; background: linear-gradient(135deg,#ff8a5c,#7a5cff 55%,#2ec5ff); box-shadow: 0 2px 10px rgba(122,92,255,.6); }
     .nav-links { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
-    .nav-links a { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; opacity: .92; }
-    .nav-links a:hover { background: rgba(255,255,255,.14); }
+    .nav-links a { font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 10px; opacity: .95; }
+    .nav-links a:hover { background: rgba(255,255,255,.16); }
 
-    .hero { display: grid; place-items: center; flex: 1; min-height: 42vh; }
-    #hero-card { width: min(760px, 100%); }
-    #hero-card .fill { padding: clamp(26px, 5vw, 52px); text-align: center; }
-    .kicker { text-transform: uppercase; letter-spacing: 3px; font-size: 11px; font-weight: 800; color: #ffc0d6; }
-    #hero-card h1 { margin: 14px 0 12px; font-size: clamp(34px, 7vw, 70px); line-height: .96; letter-spacing: -.02em; }
+    .hero { flex: 1 1 auto; display: grid; place-items: center; min-height: 0; }
+    #hero-card { width: min(780px, 100%); }
+    #hero-card .fill { padding: clamp(22px, 3.4vh, 46px) clamp(24px, 5vw, 52px); text-align: center; }
+    .kicker { text-transform: uppercase; letter-spacing: 3px; font-size: 11px; font-weight: 800; color: #ffc7db; }
+    #hero-card h1 { margin: 12px 0 10px; font-size: clamp(32px, 6vw, 62px); line-height: .96; letter-spacing: -.02em; text-shadow: 0 6px 26px rgba(0,0,0,.35); }
     #hero-card h1 span { background: linear-gradient(100deg,#fff,#b9d0ff 55%,#ffb8d0); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    #hero-card p { margin: 0 auto; max-width: 52ch; color: var(--muted); font-size: clamp(14px, 1.6vw, 16px); line-height: 1.55; }
-    #hero-card code { background: rgba(255,255,255,.14); border-radius: 5px; padding: 1px 6px; font-size: .92em; }
-    .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
-    .btn { font-weight: 700; font-size: 14px; padding: 12px 22px; border-radius: 13px; border: 1px solid rgba(255,255,255,.24); cursor: pointer; transition: transform .15s; }
-    .btn.primary { background: linear-gradient(135deg,#ff8a5c,#ff5db1); border-color: transparent; box-shadow: 0 10px 26px rgba(255,93,177,.35); }
+    #hero-card p { margin: 0 auto; max-width: 52ch; color: var(--muted); font-size: clamp(13.5px, 1.5vw, 16px); line-height: 1.5; }
+    #hero-card code { background: rgba(255,255,255,.16); border-radius: 5px; padding: 1px 6px; font-size: .92em; }
+    .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: clamp(16px, 2.4vh, 24px); }
+    .btn { font-weight: 700; font-size: 14px; padding: 11px 22px; border-radius: 13px; border: 1px solid rgba(255,255,255,.26); cursor: pointer; transition: transform .15s; }
+    .btn.primary { background: linear-gradient(135deg,#ff8a5c,#ff5db1); border-color: transparent; box-shadow: 0 10px 26px rgba(255,93,177,.4); }
     .btn:hover { transform: translateY(-1px); }
 
-    .features { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(10px, 1.6vw, 16px); }
-    @media (max-width: 860px){ .features { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 460px){ .features { grid-template-columns: 1fr; } }
-    .card .fill { min-height: 172px; padding: 18px; display: flex; flex-direction: column; gap: 8px; height: 100%; }
-    .card .ico { font-size: 24px; }
-    .card h3 { margin: 4px 0 0; font-size: 16px; }
-    .card p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
-    .card .go { margin-top: auto; font-size: 12px; font-weight: 700; color: #cfe0ff; }
-    .card:hover .go { color: #fff; }
+    .features { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(10px, 1.4vw, 15px); }
+    @media (max-width: 720px){ .features { grid-template-columns: repeat(2, 1fr); } }
+    .card .fill { min-height: 116px; padding: 15px 16px; display: flex; flex-direction: column; gap: 5px; height: 100%; }
+    .card .ico { font-size: 22px; }
+    .card h3 { margin: 2px 0 0; font-size: 15px; }
+    .card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .card .go { margin-top: auto; font-size: 12px; font-weight: 700; color: #e6eeff; }
 
-    .foot { text-align: center; color: var(--muted); font-size: 12px; opacity: .82; padding-top: 4px; }
-    .foot code { background: rgba(255,255,255,.1); border-radius: 5px; padding: 1px 6px; }
+    .foot { flex: 0 0 auto; text-align: center; color: var(--muted); font-size: 12px; opacity: .85; }
+    .foot code { background: rgba(255,255,255,.12); border-radius: 5px; padding: 1px 6px; }
+    @media (max-height: 620px){ .foot { display: none; } }
 
     .badge { position: fixed; right: 14px; bottom: 12px; z-index: 3; font-size: 11px; color: var(--muted);
       background: rgba(8,11,22,.6); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 5px 11px;
@@ -101,22 +100,22 @@
       <section class="features">
         <a class="slot card" id="f1" href="./playground.html">
           <div class="fill"><div class="ico">🔮</div><h3>Real refraction</h3>
-            <p>Bevel normals, chromatic aberration, specular and Fresnel — on the GPU.</p>
+            <p>Chromatic aberration, specular and Fresnel — on the GPU.</p>
             <div class="go">Tune it live →</div></div>
         </a>
         <a class="slot card" id="f2" href="./glassflix.html">
           <div class="fill"><div class="ico">🪄</div><h3>glassify() anything</h3>
-            <p>Turn existing DOM into glass in place; it refracts the live page behind it.</p>
+            <p>Turn existing DOM into glass, refracting the live page.</p>
             <div class="go">See Glassflix →</div></div>
         </a>
         <a class="slot card" id="f3" href="./demo.html">
           <div class="fill"><div class="ico">🧩</div><h3>Runs anywhere</h3>
-            <p>React, vanilla HTML, PWAs, and HTML5 TV / webOS / Tizen — one API.</p>
+            <p>React, vanilla, PWA, HTML5 TV / webOS / Tizen.</p>
             <div class="go">How to use →</div></div>
         </a>
         <a class="slot card" id="f4" href="https://github.com/zeroCoder1/LiquidGlass" target="_blank" rel="noopener">
           <div class="fill"><div class="ico">⚡</div><h3>Open source</h3>
-            <p>One shared context, one draw call for hundreds of panels. MIT licensed.</p>
+            <p>One draw call for hundreds of panels. MIT.</p>
             <div class="go">View on GitHub →</div></div>
         </a>
       </section>
@@ -136,17 +135,16 @@
     const bg = document.getElementById('bg');
     const glasses = [];
 
+    // Turned up: strong refraction, near-zero blur, pronounced chromatic
+    // aberration — so the wallpaper visibly bends through the glass.
     const BASE = {
-      refraction: 0.72, chromAberration: 0.10, edgeHighlight: 0.46,
-      specular: 0.62, fresnel: 1.15, blurAmount: 0.05, tintStrength: 0.05,
-      distortion: 0.07,          // gentle liquid shimmer on the refraction itself
+      refraction: 0.92, chromAberration: 0.16, edgeHighlight: 0.4,
+      specular: 0.55, fresnel: 1.1, blurAmount: 0.0, tintStrength: 0.04,
+      distortion: 0.06,          // gentle liquid shimmer
       cornerRadius: 22, zRadius: 18, shadowSpread: 22, shadowOpacity: 0.34,
     };
 
-    // The wallpaper is animated so the glass has moving content to refract —
-    // that's what makes the bending, chromatic fringing and shimmer read. A
-    // static gradient looks like plain frosted glass; drifting light does not.
-    const wall = document.createElement('canvas'); // gradient + grid, drawn once
+    const wall = document.createElement('canvas'); // gradient + grid + wordmark, drawn per size
     let DW = 0, DH = 0, DPR = 1;
 
     function drawWall() {
@@ -157,18 +155,30 @@
       DH = Math.max(1, Math.round(h * DPR));
       wall.width = bg.width = DW; wall.height = bg.height = DH;
       const c = wall.getContext('2d');
+
       const g = c.createLinearGradient(0, 0, DW, DH);
       g.addColorStop(0, '#ff8a5c'); g.addColorStop(0.42, '#7a5cff');
       g.addColorStop(0.72, '#2ec5ff'); g.addColorStop(1, '#0b2a4a');
       c.fillStyle = g; c.fillRect(0, 0, DW, DH);
-      c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 1; c.beginPath();
-      const step = 54 * DPR;
+
+      // A big soft wordmark behind everything — the glass bends it (like the
+      // playground) which is what makes the refraction obvious.
+      c.save();
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = 'rgba(255,255,255,0.11)';
+      c.font = `800 ${Math.round(DH * 0.19)}px "Sora", system-ui, sans-serif`;
+      c.fillText('LIQUID', DW / 2, DH * 0.4);
+      c.fillText('GLASS', DW / 2, DH * 0.62);
+      c.restore();
+
+      // Bright fine grid = lots of lines for the lens to bend.
+      c.strokeStyle = 'rgba(255,255,255,.22)'; c.lineWidth = 1; c.beginPath();
+      const step = 46 * DPR;
       for (let x = 0; x <= DW; x += step) { c.moveTo(x, 0); c.lineTo(x, DH); }
       for (let y = 0; y <= DH; y += step) { c.moveTo(0, y); c.lineTo(DW, y); }
       c.stroke();
     }
 
-    // Soft coloured orbs that drift slowly in lazy loops (screen-blended glow).
     const ORBS = [
       { col: '#ffd36e', r: .42, x: .22, y: .30, ax: .15, ay: .12, sp: .00040 },
       { col: '#ff5db1', r: .40, x: .80, y: .30, ax: .13, ay: .15, sp: .00052 },
@@ -193,10 +203,9 @@
       c.globalCompositeOperation = 'source-over';
     }
 
-    // Insert a WebGL glass panel BEHIND the slot's flow content. Four explicit
-    // offsets make it fill the content-driven height (the `inset` shorthand
-    // didn't reliably expand across the longhands here). dynamicCanvas re-uploads
-    // the animated wallpaper each frame so the refraction stays live.
+    // Insert a WebGL glass panel behind the slot's flow content (four explicit
+    // offsets fill the content-driven height). dynamicCanvas keeps refraction
+    // live as the wallpaper animates.
     function mount(slot, opts) {
       const glass = new LiquidGlass({ stage, background: bg, renderer: 'webgl', dynamicCanvas: true, ...BASE, ...opts });
       const el = glass.element;
@@ -212,29 +221,25 @@
     drawWall();
     drawFrame(0);
 
-    mount(document.getElementById('nav'), { cornerRadius: 18, refraction: 0.55, blurAmount: 0.1, button: true });
-    mount(document.getElementById('hero-card'), { cornerRadius: 30, refraction: 0.72, blurAmount: 0.04, edgeHighlight: 0.52 });
+    mount(document.getElementById('nav'), { cornerRadius: 18, refraction: 0.7, blurAmount: 0.04, button: true });
+    mount(document.getElementById('hero-card'), { cornerRadius: 30, refraction: 0.9, edgeHighlight: 0.46 });
     ['f1', 'f2', 'f3', 'f4'].forEach((id) =>
       mount(document.getElementById(id), { cornerRadius: 20, button: true }));
 
     document.getElementById('badgeTier').textContent = `${glasses[0].mode} · ${glasses[0].tier}`;
 
-    // Our own loop animates the wallpaper; the library's shared loop re-uploads
-    // and redraws the glass (dynamicCanvas + distortion keep it awake).
     function tick(now) { drawFrame(now); requestAnimationFrame(tick); }
     requestAnimationFrame(tick);
 
     let rz;
     function refresh() {
       drawWall();
-      drawFrame(performance.now());   // repaint bg now, don't wait for the next frame
+      drawFrame(performance.now());
       glasses.forEach((g) => { g.setBackground(bg); g.set({}); });
     }
-    // A ResizeObserver fires when the wallpaper first gets a real size — even if
-    // the page loaded in a hidden/background tab at 0×0 — and on every viewport
-    // change, so the wallpaper and glass always match the current size.
+    // Fires when the wallpaper first gets a real size (even a 0×0 background-tab
+    // load) and on every viewport change.
     new ResizeObserver(() => { clearTimeout(rz); rz = setTimeout(refresh, 120); }).observe(bg);
-    stage.addEventListener('scroll', () => glasses.forEach((g) => g.set({})), { passive: true });
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
