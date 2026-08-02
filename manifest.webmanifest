@@ -1,0 +1,13 @@
+{
+  "name": "Liquid Glass",
+  "short_name": "LiquidGlass",
+  "description": "Real-time liquid glass material for web, PWA and HTML5 TV.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#05070f",
+  "theme_color": "#0b1020",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

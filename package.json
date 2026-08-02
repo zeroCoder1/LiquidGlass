@@ -1,0 +1,84 @@
+{
+  "name": "liquid-glass",
+  "version": "0.1.0",
+  "description": "Real-time liquid glass material for web, PWA and HTML5 TV. WebGL2 refraction with a CSS backdrop-filter fallback, plus glassify() to turn existing DOM into glass in place.",
+  "type": "module",
+  "main": "./dist/liquid-glass.cjs",
+  "module": "./dist/liquid-glass.esm.js",
+  "browser": "./dist/liquid-glass.global.min.js",
+  "unpkg": "./dist/liquid-glass.global.min.js",
+  "jsdelivr": "./dist/liquid-glass.global.min.js",
+  "types": "./dist/liquid-glass.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/liquid-glass.d.ts",
+      "import": "./dist/liquid-glass.esm.js",
+      "require": "./dist/liquid-glass.cjs",
+      "default": "./dist/liquid-glass.esm.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.esm.js",
+      "require": "./dist/react.cjs"
+    },
+    "./web-component": {
+      "types": "./dist/liquid-glass.d.ts",
+      "import": "./dist/liquid-glass.esm.js"
+    },
+    "./params": "./src/params.js",
+    "./global": "./dist/liquid-glass.global.min.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "npm run build",
+    "start": "python3 -m http.server 5173",
+    "serve": "npx --yes serve -l 5173 ."
+  },
+  "keywords": [
+    "liquid-glass",
+    "glass",
+    "glassmorphism",
+    "webgl",
+    "webgl2",
+    "refraction",
+    "backdrop-filter",
+    "pwa",
+    "tv",
+    "tizen",
+    "webos",
+    "react",
+    "web-component",
+    "ui"
+  ],
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true }
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeroCoder1/LiquidGlass.git"
+  },
+  "homepage": "https://github.com/zeroCoder1/LiquidGlass#readme",
+  "bugs": {
+    "url": "https://github.com/zeroCoder1/LiquidGlass/issues"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}

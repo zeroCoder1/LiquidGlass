@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Liquid Glass — Playground</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #05070f; color: #eef; overflow: hidden; }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+    }
+    /* The visible background AND the refraction source are the same canvas. */
+    #bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* ---- Control panel ---- */
+    #panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 300px;
+      max-height: calc(100dvh - 32px);
+      overflow: auto;
+      padding: 14px 16px 18px;
+      border-radius: 16px;
+      background: rgba(14, 18, 34, 0.72);
+      backdrop-filter: blur(18px) saturate(1.4);
+      -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      z-index: 10;
+      font-size: 12px;
+    }
+    #panel h1 { font-size: 14px; margin: 2px 0 12px; letter-spacing: .3px; }
+    #panel .mode { opacity: .6; font-weight: 400; font-size: 11px; }
+    .ctrl { margin: 9px 0; }
+    .ctrl label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .ctrl .name { font-weight: 600; }
+    .ctrl .val { font-variant-numeric: tabular-nums; opacity: .8; min-width: 46px; text-align: right; }
+    .ctrl .doc { display: block; opacity: .5; font-size: 10.5px; margin-top: 1px; line-height: 1.3; }
+    input[type=range] { width: 100%; margin: 5px 0 0; accent-color: #6ea8ff; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .row input[type=checkbox] { accent-color: #6ea8ff; width: 16px; height: 16px; }
+    select { width: 100%; margin-top: 4px; background: #10162c; color: #eef; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 5px; }
+    .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .actions button { flex: 1; padding: 7px; border-radius: 9px; border: 1px solid rgba(255,255,255,.14); background: #17203c; color: #eef; cursor: pointer; }
+    .actions button:hover { background: #22305a; }
+
+    .glass-label { display: flex; align-items: center; justify-content: center; height: 100%;
+      font-weight: 600; font-size: 18px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.4);
+      user-select: none; letter-spacing: .3px; }
+    .hint { position: fixed; left: 16px; bottom: 14px; z-index: 10; opacity: .5; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="bg"></canvas>
+  </div>
+
+  <div id="panel">
+    <h1>Liquid&nbsp;Glass <span class="mode" id="mode"></span></h1>
+    <div id="controls"></div>
+    <div class="actions">
+      <button id="reset">Reset</button>
+      <button id="video">Video BG</button>
+    </div>
+    <div class="actions">
+      <button id="stress">Spawn ×500</button>
+    </div>
+    <div class="ctrl" style="margin-top:6px"><span class="doc" id="stats"></span></div>
+  </div>
+  <div class="hint">Drag the pill when “floating” is on. Hover/press when “button” is on.</div>
+
+  <script type="module">
+    import { LiquidGlass, PARAM_DEFS } from './src/liquid-glass.js';
+
+    // ---- Procedural background (no external assets, offline-friendly) --------
+    const bg = document.getElementById('bg');
+    const bctx = bg.getContext('2d');
+    function drawBackground() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = window.innerWidth, h = window.innerHeight;
+      bg.width = Math.round(w * dpr);
+      bg.height = Math.round(h * dpr);
+      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const g = bctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#ff7a59');
+      g.addColorStop(0.4, '#7a5cff');
+      g.addColorStop(0.7, '#2ec5ff');
+      g.addColorStop(1, '#0b2a4a');
+      bctx.fillStyle = g;
+      bctx.fillRect(0, 0, w, h);
+
+      // Bright blobs to make refraction obvious.
+      const blobs = [['#ffd36e', .55], ['#ff5db1', .5], ['#5effc8', .45], ['#ffffff', .35]];
+      blobs.forEach(([c, a], i) => {
+        const rg = bctx.createRadialGradient(
+          w * (0.2 + 0.22 * i), h * (0.7 - 0.15 * i), 0,
+          w * (0.2 + 0.22 * i), h * (0.7 - 0.15 * i), Math.min(w, h) * 0.4);
+        rg.addColorStop(0, `${c}${Math.round(a * 255).toString(16).padStart(2, '0')}`);
+        rg.addColorStop(1, `${c}00`);
+        bctx.fillStyle = rg;
+        bctx.fillRect(0, 0, w, h);
+      });
+
+      // Crisp grid so distortion / chromatic aberration reads clearly.
+      bctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      bctx.lineWidth = 1;
+      const step = 56;
+      bctx.beginPath();
+      for (let x = 0; x <= w; x += step) { bctx.moveTo(x, 0); bctx.lineTo(x, h); }
+      for (let y = 0; y <= h; y += step) { bctx.moveTo(0, y); bctx.lineTo(w, y); }
+      bctx.stroke();
+
+      bctx.fillStyle = 'rgba(255,255,255,0.9)';
+      bctx.font = '700 64px system-ui, sans-serif';
+      bctx.fillText('LIQUID', 60, h * 0.35);
+      bctx.fillText('GLASS', 60, h * 0.35 + 72);
+    }
+    drawBackground();
+
+    // ---- The glass panel ----------------------------------------------------
+    const stage = document.getElementById('stage');
+    const glass = new LiquidGlass({
+      stage,
+      background: bg,        // provided texture = the same canvas we display
+      dynamicCanvas: false,
+      width: 340,
+      height: 130,
+      x: Math.round(window.innerWidth * 0.32),
+      y: Math.round(window.innerHeight * 0.42),
+    });
+    stage.appendChild(glass.element);
+    const label = document.createElement('div');
+    label.className = 'glass-label';
+    label.textContent = 'Liquid Glass';
+    glass.content.appendChild(label);
+
+    document.getElementById('mode').textContent = '· ' + glass.mode;
+
+    // Redraw + refresh on resize.
+    window.addEventListener('resize', () => {
+      drawBackground();
+      glass.setBackground(bg); // re-upload the shared texture into the pool
+    });
+
+    // ---- Build the control panel from PARAM_DEFS ----------------------------
+    const controls = document.getElementById('controls');
+    const inputs = {};
+
+    for (const [key, def] of Object.entries(PARAM_DEFS)) {
+      const wrap = document.createElement('div');
+      wrap.className = 'ctrl';
+
+      if (def.type === 'number') {
+        const step = (def.max - def.min) <= 4 ? 0.01 : 1;
+        wrap.innerHTML =
+          `<label><span class="name">${key}</span><span class="val" id="v-${key}"></span></label>
+           <input type="range" min="${def.min}" max="${def.max}" step="${step}" value="${def.default}" id="i-${key}">
+           <span class="doc">${def.doc}</span>`;
+        controls.appendChild(wrap);
+        const input = wrap.querySelector('input');
+        const val = wrap.querySelector('.val');
+        const show = () => { val.textContent = Number(input.value).toFixed(step < 1 ? 2 : 0); };
+        show();
+        input.addEventListener('input', () => { glass.set({ [key]: input.value }); show(); });
+        inputs[key] = { input, show };
+      } else if (def.type === 'boolean') {
+        wrap.innerHTML =
+          `<label class="row"><input type="checkbox" id="i-${key}" ${def.default ? 'checked' : ''}>
+           <span class="name">${key}</span></label><span class="doc">${def.doc}</span>`;
+        controls.appendChild(wrap);
+        const input = wrap.querySelector('input');
+        input.addEventListener('change', () => glass.set({ [key]: input.checked }));
+        inputs[key] = { input };
+      } else if (def.type === 'enum') {
+        wrap.innerHTML =
+          `<label><span class="name">${key}</span></label>
+           <select id="i-${key}">${def.values.map((v) =>
+             `<option value="${v}" ${v === def.default ? 'selected' : ''}>${v}</option>`).join('')}</select>
+           <span class="doc">${def.doc}</span>`;
+        controls.appendChild(wrap);
+        const input = wrap.querySelector('select');
+        input.addEventListener('change', () => glass.set({ [key]: Number(input.value) }));
+        inputs[key] = { input };
+      }
+    }
+
+    // ---- Reset + video-background demo --------------------------------------
+    document.getElementById('reset').addEventListener('click', () => {
+      for (const [key, def] of Object.entries(PARAM_DEFS)) {
+        const c = inputs[key];
+        if (def.type === 'boolean') c.input.checked = def.default;
+        else c.input.value = def.default;
+        c.show?.();
+        glass.set({ [key]: def.default });
+      }
+    });
+
+    let video;
+    document.getElementById('video').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      if (video) { // toggle back to procedural canvas
+        video.pause();
+        glass.options.dynamicCanvas = false;
+        glass.setBackground(bg);
+        // keep displaying canvas
+        bg.style.display = 'block';
+        video = null;
+        btn.textContent = 'Video BG';
+        return;
+      }
+      video = document.createElement('video');
+      video.muted = true; video.loop = true; video.playsInline = true;
+      video.crossOrigin = 'anonymous';
+      // Small looping gradient video generated on a canvas -> captureStream (offline).
+      const vc = document.createElement('canvas');
+      vc.width = window.innerWidth; vc.height = window.innerHeight;
+      const vctx = vc.getContext('2d');
+      let t = 0;
+      (function paint() {
+        t += 0.02;
+        const g = vctx.createLinearGradient(0, 0, vc.width, vc.height);
+        g.addColorStop(0, `hsl(${(t * 40) % 360} 90% 55%)`);
+        g.addColorStop(1, `hsl(${(t * 40 + 120) % 360} 90% 45%)`);
+        vctx.fillStyle = g; vctx.fillRect(0, 0, vc.width, vc.height);
+        for (let i = 0; i < 6; i++) {
+          vctx.fillStyle = `hsla(${(t * 60 + i * 60) % 360} 90% 70% / .5)`;
+          vctx.beginPath();
+          vctx.arc(vc.width * (0.5 + 0.4 * Math.sin(t + i)), vc.height * (0.5 + 0.4 * Math.cos(t * 1.3 + i)), 120, 0, 7);
+          vctx.fill();
+        }
+        requestAnimationFrame(paint);
+      })();
+      // Use the animated canvas directly as a dynamic texture (simpler than captureStream).
+      bg.style.display = 'none';
+      vc.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+      stage.insertBefore(vc, bg);
+      glass.options.dynamicCanvas = true;
+      glass.setBackground(vc);
+      video = { pause() { vc.remove(); bg.style.display = 'block'; } };
+      btn.textContent = 'Static BG';
+    });
+
+    // ---- Stress test: many glass CTAs share ONE context + one draw call -----
+    const stressBtn = document.getElementById('stress');
+    const statsEl = document.getElementById('stats');
+    let swarm = [];
+    stressBtn.addEventListener('click', () => {
+      if (swarm.length) {
+        swarm.forEach((g) => g.destroy());
+        swarm = [];
+        stressBtn.textContent = 'Spawn ×500';
+        statsEl.textContent = '';
+        return;
+      }
+      const N = 500;
+      for (let i = 0; i < N; i++) {
+        const w = 70 + Math.random() * 60;
+        const h = 34 + Math.random() * 26;
+        const g = new LiquidGlass({
+          stage,
+          background: bg,
+          width: Math.round(w),
+          height: Math.round(h),
+          x: Math.round(Math.random() * (window.innerWidth - w - 320)),
+          y: Math.round(Math.random() * (window.innerHeight - h)),
+          cornerRadius: Math.min(w, h) / 2,
+          zRadius: 18,
+          refraction: 0.5,
+          chromAberration: 0.08,
+          fresnel: 1,
+          button: true,
+        });
+        stage.appendChild(g.element);
+        swarm.push(g);
+      }
+      stressBtn.textContent = 'Clear swarm';
+    });
+
+    // Lightweight FPS meter (only meaningful while something animates/interacts).
+    let frames = 0, last = performance.now();
+    (function meter(now) {
+      frames++;
+      if (now - last >= 500) {
+        const fps = Math.round((frames * 1000) / (now - last));
+        const count = 1 + swarm.length;
+        statsEl.textContent = `${count} panel${count > 1 ? 's' : ''} · ~${fps} fps`;
+        frames = 0; last = now;
+      }
+      requestAnimationFrame(meter);
+    })(performance.now());
+
+    // ---- PWA service worker -------------------------------------------------
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>

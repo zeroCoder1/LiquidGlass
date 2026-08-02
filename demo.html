@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Liquid Glass — how to implement each type</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Sora","Avenir Next","Segoe UI",sans-serif; --ink:#eef4ff; --muted:#aab6d4; --line:rgba(255,255,255,.14); }
+    * { box-sizing: border-box; }
+    html, body { margin:0; background:#070a14; color:var(--ink); }
+    body { max-width: 1080px; margin: 0 auto; padding: clamp(18px,4vw,44px) clamp(16px,4vw,32px) 80px; }
+    a { color:#9ec1ff; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    header h1 { font-size: clamp(28px,5vw,46px); margin: 0 0 8px; letter-spacing:-.01em; }
+    header .kick { text-transform:uppercase; letter-spacing:2.4px; font-size:11px; font-weight:800; color:#ffb0cb; }
+    header p { color:var(--muted); line-height:1.55; max-width:70ch; font-size:14px; }
+
+    .badge { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:5px 11px; font-size:12px; background:rgba(255,255,255,.05); }
+    .badge b { color:#9fe6c0; }
+
+    .model { border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.03); padding:16px 18px; margin:22px 0 30px; }
+    .model h2 { margin:0 0 8px; font-size:15px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.08); vertical-align:top; }
+    th { color:#cfdcff; font-weight:600; }
+    td code { background:rgba(255,255,255,.08); border-radius:5px; padding:1px 6px; font-size:.9em; }
+    .yes { color:#7fe3a6; } .partial { color:#ffce6e; } .no { color:#ff9a9a; }
+
+    .recipe { border:1px solid var(--line); border-radius:18px; overflow:hidden; margin:22px 0; background:rgba(255,255,255,.02); }
+    .recipe > .head { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
+    .recipe .n { font-size:12px; font-weight:800; color:#7a5cff; background:rgba(122,92,255,.16); border-radius:8px; padding:3px 8px; }
+    .recipe h3 { margin:0; font-size:18px; }
+    .recipe .head .where { margin-left:auto; font-size:12px; color:var(--muted); }
+    .recipe .head .where code { background:rgba(255,255,255,.08); border-radius:5px; padding:1px 6px; }
+    .grid { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr); }
+    @media (max-width: 820px){ .grid { grid-template-columns: 1fr; } }
+
+    .stage { position:relative; min-height:230px; overflow:hidden; }
+    .stage.pad { padding: 18px; }
+    .side { padding:16px 18px; border-left:1px solid var(--line); }
+    @media (max-width:820px){ .side { border-left:0; border-top:1px solid var(--line);} }
+    .side p { margin:0 0 10px; color:var(--muted); font-size:13px; line-height:1.5; }
+    pre { margin:0; background:#0b1020; border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:12px 13px; overflow:auto; font-size:12px; line-height:1.55; }
+    .tok-k { color:#c39bff; } .tok-s { color:#9fe6c0; } .tok-c { color:#6b7794; } .tok-f { color:#8cc4ff; }
+    .works { margin-top:12px; font-size:12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .works span { border:1px solid var(--line); border-radius:8px; padding:4px 8px; }
+
+    /* Live-content backdrop for the glassify recipe */
+    .live-bg { position:absolute; inset:0; padding:14px; display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+    .live-bg .tile { border-radius:10px; display:flex; align-items:flex-end; padding:6px; font-size:10px; font-weight:700; }
+    .live-scroll-note { position:absolute; left:14px; bottom:8px; font-size:11px; color:rgba(255,255,255,.7); }
+
+    /* The card we hand to glassify() — ordinary styled HTML */
+    .demo-card { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:230px; height:120px;
+      border-radius:22px; border:1px solid rgba(255,255,255,.18); background:rgba(20,26,48,.55);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+    .demo-card b { font-size:16px; } .demo-card button { cursor:pointer; border:1px solid rgba(255,255,255,.25); border-radius:10px; background:rgba(255,255,255,.12); color:#fff; padding:6px 14px; font:inherit; font-weight:600; }
+
+    .filemap { border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-top:30px; background:rgba(255,255,255,.03); }
+    .filemap h2 { margin:0 0 10px; font-size:15px; }
+    .filemap li { margin:5px 0; font-size:13px; color:var(--muted); }
+    .filemap code { color:#9ec1ff; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="kick">Liquid Glass</div>
+    <h1>Which renderer, and how to implement it</h1>
+    <p>
+      There are two renderers behind one API. You pick by answering a single question:
+      <strong>is the thing behind the glass available as a texture, or is it the live page?</strong>
+      Each recipe below is live in <em>this</em> browser, with the exact code and the file that implements it.
+    </p>
+    <p class="badge">in your browser, <code>glassify()</code> resolves to: <b id="tierBadge">…</b></p>
+  </header>
+
+  <section class="model">
+    <h2>The decision</h2>
+    <table>
+      <thead><tr><th>Behind the glass is…</th><th>Use</th><th>Refraction</th><th>Implemented in</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>an <strong>image / video / canvas</strong> you can supply</td>
+          <td><code>new LiquidGlass({ background })</code> · WebGL</td>
+          <td><span class="yes">full — every browser (Firefox too)</span></td>
+          <td><code>glass-pool.js</code>, <code>shaders.js</code></td>
+        </tr>
+        <tr>
+          <td>the <strong>live page</strong> (arbitrary scrolling DOM)</td>
+          <td><code>glassify(selector)</code> · DOM</td>
+          <td><span class="yes">Chromium</span> · <span class="partial">blur on Firefox / Safari</span></td>
+          <td><code>dom-renderer.js</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin:12px 0 0;color:var(--muted);font-size:12.5px;line-height:1.5">
+      Why not “full refraction of any live element, everywhere”? That’s the iOS Liquid Glass trick, and it needs the
+      OS compositor to sample the real backdrop in real time. The web has no such API — <code>backdrop-filter</code> is
+      the closest, and only Chromium resolves the SVG displacement it needs. So for cross-browser refraction you give the
+      glass a texture (WebGL); for adopting arbitrary live UI you use <code>glassify()</code> and accept blur off-Chromium.
+    </p>
+  </section>
+
+  <section class="model">
+    <h2>What each tier can render</h2>
+    <p style="margin:0 0 12px;color:var(--muted);font-size:12.5px">
+      The library picks a <strong>tier</strong> at runtime and exposes it as <code>glass.tier</code>. Read it to
+      degrade gracefully — e.g. lean on tint + edge highlight when refraction isn't available.
+    </p>
+    <table>
+      <thead><tr><th>tier</th><th>blur</th><th>tint · bevel · sheen</th><th>refraction</th><th>chromatic aberration</th><th>you get it when…</th></tr></thead>
+      <tbody>
+        <tr><td><code>webgl</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td>you pass a <code>background</code> texture</td></tr>
+        <tr><td><code>displacement</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td><code>glassify()</code> on Chromium</td></tr>
+        <tr><td><code>blur</code></td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td><code>glassify()</code> on Firefox / Safari</td></tr>
+        <tr><td><code>flat</code></td><td class="no">✗</td><td class="partial">gradients only</td><td class="no">✗</td><td class="no">✗</td><td>no <code>backdrop-filter</code> at all</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- RECIPE 1 — WebGL over an image ------------------------------------------------ -->
+  <section class="recipe">
+    <div class="head"><span class="n">1</span><h3>WebGL over an image — full refraction, every browser</h3>
+      <span class="where">implemented in <code>src/glass-pool.js</code> + <code>src/shaders.js</code></span></div>
+    <div class="grid">
+      <div class="stage" id="stage-webgl"></div>
+      <div class="side">
+        <p>You supply the backdrop as a texture, so a GPU shader does the refraction. This is the path with
+          <strong>full refraction on Firefox and Safari</strong> — it never touches <code>backdrop-filter</code>.
+          Use it for hero art, media tiles, players over a poster, anything with a known background.</p>
+<pre><span class="tok-k">import</span> { LiquidGlass } <span class="tok-k">from</span> <span class="tok-s">'liquid-glass'</span>;
+
+<span class="tok-c">// stage is position:relative and the image covers it</span>
+<span class="tok-k">const</span> glass = <span class="tok-k">new</span> <span class="tok-f">LiquidGlass</span>({
+  stage,
+  background: imageEl,      <span class="tok-c">// img / canvas / video</span>
+  renderer: <span class="tok-s">'webgl'</span>,
+  width: <span class="tok-s">220</span>, height: <span class="tok-s">120</span>, x: <span class="tok-s">40</span>, y: <span class="tok-s">55</span>,
+  refraction: <span class="tok-s">0.8</span>, chromAberration: <span class="tok-s">0.1</span>, blurAmount: <span class="tok-s">0.08</span>,
+});
+stage.<span class="tok-f">appendChild</span>(glass.element);
+glass.content.textContent = <span class="tok-s">'Play'</span>;</pre>
+        <div class="works"><span>Chromium <span class="yes">✓ refraction</span></span><span>Firefox <span class="yes">✓ refraction</span></span><span>Safari <span class="yes">✓ refraction</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECIPE 2 — WebGL over video / dynamic canvas ---------------------------------- -->
+  <section class="recipe">
+    <div class="head"><span class="n">2</span><h3>WebGL over live video / canvas — full refraction, every browser</h3>
+      <span class="where">implemented in <code>src/glass-pool.js</code> (immutable texture upload)</span></div>
+    <div class="grid">
+      <div class="stage" id="stage-video"></div>
+      <div class="side">
+        <p>Same WebGL path, but the texture updates every frame. Pass a <code>&lt;video&gt;</code> or an animated canvas
+          with <code>dynamicCanvas: true</code>. The frame is uploaded in place (<code>texSubImage2D</code>) so it never
+          reallocates GPU memory. This is how you glass over playing video, everywhere.</p>
+<pre><span class="tok-k">const</span> glass = <span class="tok-k">new</span> <span class="tok-f">LiquidGlass</span>({
+  stage,
+  background: videoEl,        <span class="tok-c">// or an animated canvas…</span>
+  dynamicCanvas: <span class="tok-k">true</span>,      <span class="tok-c">// …with this flag</span>
+  renderer: <span class="tok-s">'webgl'</span>,
+  refraction: <span class="tok-s">0.7</span>, distortion: <span class="tok-s">0.15</span>,
+});</pre>
+        <div class="works"><span>Chromium <span class="yes">✓</span></span><span>Firefox <span class="yes">✓</span></span><span>Safari <span class="yes">✓</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECIPE 3 — glassify live DOM -------------------------------------------------- -->
+  <section class="recipe">
+    <div class="head"><span class="n">3</span><h3>glassify() the live page — adopt any element in place</h3>
+      <span class="where">implemented in <code>src/dom-renderer.js</code></span></div>
+    <div class="grid">
+      <div class="stage" id="stage-glassify">
+        <div class="live-bg" id="live-bg"></div>
+        <article class="demo-card" id="demo-card">
+          <b>Live glass</b>
+          <button data-toast>Click me</button>
+        </article>
+        <div class="live-scroll-note">↑ the tiles behind are real DOM — the card refracts them</div>
+      </div>
+      <div class="side">
+        <p>No texture. You hand <code>glassify()</code> a selector and it turns that element into glass <em>in place</em> —
+          keeping its children, layout and click handlers — refracting whatever is actually behind it on the page.
+          <strong>Full refraction on Chromium; frosted blur on Firefox / Safari</strong> (they can’t resolve SVG
+          displacement in <code>backdrop-filter</code>).</p>
+<pre><span class="tok-k">import</span> { glassify } <span class="tok-k">from</span> <span class="tok-s">'liquid-glass'</span>;
+
+<span class="tok-c">// #demo-card is ordinary styled HTML already on the page</span>
+<span class="tok-f">glassify</span>(<span class="tok-s">'#demo-card'</span>, {
+  refraction: <span class="tok-s">0.7</span>, blurAmount: <span class="tok-s">0.14</span>,
+  edgeHighlight: <span class="tok-s">0.5</span>, chromAberration: <span class="tok-s">0.08</span>,
+});
+<span class="tok-c">// children stay clickable; its opaque background is cleared</span></pre>
+        <div class="works"><span>Chromium <span class="yes">✓ refraction</span></span><span>Firefox <span class="partial">blur</span></span><span>Safari <span class="partial">blur</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECIPE 4 — wrappers ---------------------------------------------------------- -->
+  <section class="recipe">
+    <div class="head"><span class="n">4</span><h3>Same thing from a web component or React</h3>
+      <span class="where">implemented in <code>src/web-component.js</code> · <code>src/react.js</code></span></div>
+    <div class="grid">
+      <div class="stage pad" style="min-height:auto">
+<pre><span class="tok-c">&lt;!-- Web component --&gt;</span>
+<span class="tok-k">import</span> { defineLiquidGlass } <span class="tok-k">from</span> <span class="tok-s">'liquid-glass/web-component'</span>;
+<span class="tok-f">defineLiquidGlass</span>();
+
+<span class="tok-f">&lt;liquid-glass</span> stage=<span class="tok-s">"#stage"</span> background=<span class="tok-s">"/bg.jpg"</span>
+  refraction=<span class="tok-s">"0.6"</span> width=<span class="tok-s">"320"</span> height=<span class="tok-s">"120"</span> button<span class="tok-f">&gt;</span>
+  Play
+<span class="tok-f">&lt;/liquid-glass&gt;</span></pre>
+      </div>
+      <div class="side">
+<pre><span class="tok-c">// React</span>
+<span class="tok-k">import</span> { LiquidGlassView } <span class="tok-k">from</span> <span class="tok-s">'liquid-glass/react'</span>;
+
+<span class="tok-f">&lt;div</span> ref={stageRef} style={{ position: <span class="tok-s">'relative'</span> }}<span class="tok-f">&gt;</span>
+  <span class="tok-f">&lt;LiquidGlassView</span>
+    stage={stageRef} background=<span class="tok-s">"/bg.jpg"</span>
+    refraction={<span class="tok-s">0.6</span>} width={<span class="tok-s">320</span>} height={<span class="tok-s">120</span>} button<span class="tok-f">&gt;</span>
+    Play
+  <span class="tok-f">&lt;/LiquidGlassView&gt;</span>
+<span class="tok-f">&lt;/div&gt;</span></pre>
+        <p style="margin-top:12px">Both wrappers take the same params and both renderers — <code>background</code> ⇒ WebGL,
+          none ⇒ DOM. They’re thin shells over the same core.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECIPE 5 — many panels ------------------------------------------------------- -->
+  <section class="recipe">
+    <div class="head"><span class="n">5</span><h3>Many panels, one draw — it scales</h3>
+      <span class="where">implemented in <code>src/glass-pool.js</code></span></div>
+    <div class="grid">
+      <div class="stage" id="stage-many"></div>
+      <div class="side">
+        <p>Every panel on the same <code>stage</code> shares <strong>one</strong> WebGL context and is drawn in a
+          <strong>single</strong> <code>drawArraysInstanced</code> call — 500 panels cost about what a handful do.
+          Panels scrolled offscreen are culled, DPR adapts to keep the GPU under budget, and the render loop halts
+          entirely when nothing is animating.</p>
+<pre><span class="tok-c">// one shared texture, one context, one draw call for all of them</span>
+<span class="tok-k">for</span> (<span class="tok-k">const</span> p <span class="tok-k">of</span> spots) {
+  <span class="tok-k">const</span> g = <span class="tok-k">new</span> <span class="tok-f">LiquidGlass</span>({
+    stage, background: tex, renderer: <span class="tok-s">'webgl'</span>,
+    width: <span class="tok-s">84</span>, height: <span class="tok-s">54</span>, x: p.x, y: p.y,
+    refraction: <span class="tok-s">0.7</span>, cornerRadius: <span class="tok-s">16</span>,
+  });
+  stage.<span class="tok-f">appendChild</span>(g.element);
+}
+<span class="tok-c">// add hundreds more — still one draw per frame</span></pre>
+        <div class="works"><span>Chromium <span class="yes">✓</span></span><span>Firefox <span class="yes">✓</span></span><span>Safari <span class="yes">✓</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECIPE 6 — interactions ------------------------------------------------------ -->
+  <section class="recipe">
+    <div class="head"><span class="n">6</span><h3>Interactive glass — press &amp; drag</h3>
+      <span class="where"><code>button</code> / <code>floating</code> in <code>src/liquid-glass.js</code></span></div>
+    <div class="grid">
+      <div class="stage" id="stage-interactive"></div>
+      <div class="side">
+        <p><code>button: true</code> brightens on hover and flattens the bevel + deepens the shadow on press.
+          <code>floating: true</code> makes it draggable with a pointer. Grab the pill on the left and move it →</p>
+<pre><span class="tok-k">const</span> g = <span class="tok-k">new</span> <span class="tok-f">LiquidGlass</span>({
+  stage, background: tex, renderer: <span class="tok-s">'webgl'</span>,
+  width: <span class="tok-s">150</span>, height: <span class="tok-s">64</span>, x: <span class="tok-s">24</span>, y: <span class="tok-s">70</span>,
+  button: <span class="tok-k">true</span>,     <span class="tok-c">// hover / press feedback</span>
+  floating: <span class="tok-k">true</span>,   <span class="tok-c">// drag to move</span>
+});
+g.content.textContent = <span class="tok-s">'Drag / press me'</span>;</pre>
+        <div class="works"><span>Chromium <span class="yes">✓</span></span><span>Firefox <span class="yes">✓</span></span><span>Safari <span class="yes">✓</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARAMETERS ------------------------------------------------------------------- -->
+  <section class="model">
+    <h2>Every parameter you can set</h2>
+    <p style="margin:0 0 12px;color:var(--muted);font-size:12.5px">
+      Pass any of these to the constructor, to <code>glassify()</code>, or live via <code>glass.set({ … })</code>.
+      Values are clamped to the ranges shown. Full source: <code>src/params.js</code>.
+    </p>
+    <table>
+      <thead><tr><th>param</th><th>default</th><th>range</th><th>what it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>refraction</code></td><td>0.69</td><td>0 – 2</td><td>how much the glass bends the image behind it</td></tr>
+        <tr><td><code>blurAmount</code></td><td>0.0</td><td>0 – 1</td><td>background blur (0 = sharp; taps scale with strength)</td></tr>
+        <tr><td><code>chromAberration</code></td><td>0.05</td><td>0 – 1</td><td>colour fringing at the edges</td></tr>
+        <tr><td><code>edgeHighlight</code></td><td>0.05</td><td>0 – 2</td><td>rim light / edge glow</td></tr>
+        <tr><td><code>specular</code></td><td>0.0</td><td>0 – 2</td><td>specular highlight (2-light Blinn-Phong)</td></tr>
+        <tr><td><code>fresnel</code></td><td>1.0</td><td>0 – 2</td><td>reflection at grazing angles</td></tr>
+        <tr><td><code>distortion</code></td><td>0.0</td><td>0 – 1</td><td>animated micro-distortion noise</td></tr>
+        <tr><td><code>cornerRadius</code></td><td>65</td><td>0 – 2000</td><td>corner radius, CSS px</td></tr>
+        <tr><td><code>zRadius</code></td><td>40</td><td>1 – 2000</td><td>bevel depth — curvature of the pill's cross-section</td></tr>
+        <tr><td><code>bevelMode</code></td><td>0</td><td>0 or 1</td><td>0 = biconvex pill · 1 = dome / plano-convex</td></tr>
+        <tr><td><code>opacity</code></td><td>1.0</td><td>0 – 1</td><td>overall panel opacity</td></tr>
+        <tr><td><code>tintStrength</code></td><td>0.0</td><td>0 – 1</td><td>cool blue glass tint</td></tr>
+        <tr><td><code>saturation</code></td><td>0.0</td><td>-1 – 1</td><td>saturation of the refracted image</td></tr>
+        <tr><td><code>brightness</code></td><td>0.0</td><td>-0.5 – 0.5</td><td>brightness of the refracted image</td></tr>
+        <tr><td><code>shadowOpacity</code> · <code>shadowSpread</code> · <code>shadowOffsetY</code></td><td>0.3 · 10 · 1</td><td>—</td><td>drop shadow (compositor <code>box-shadow</code>)</td></tr>
+        <tr><td><code>button</code> · <code>floating</code></td><td>false</td><td>bool</td><td>hover/press feedback · drag-to-move</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- API -------------------------------------------------------------------------- -->
+  <section class="model">
+    <h2>The API you call</h2>
+<pre><span class="tok-k">import</span> { LiquidGlass, glassify, detectDomCapabilities } <span class="tok-k">from</span> <span class="tok-s">'liquid-glass'</span>;
+
+<span class="tok-k">const</span> g = <span class="tok-k">new</span> <span class="tok-f">LiquidGlass</span>({
+  stage,                 <span class="tok-c">// container the glass lives in (default document.body)</span>
+  background,            <span class="tok-c">// img / video / canvas / URL → selects WebGL under 'auto'</span>
+  renderer: <span class="tok-s">'auto'</span>,     <span class="tok-c">// 'auto' | 'webgl' | 'dom'  ('css' = alias for dom)</span>
+  width, height, x, y,   <span class="tok-c">// geometry for a constructed panel</span>
+  maxDpr: <span class="tok-s">2</span>,            <span class="tok-c">// cap device-pixel-ratio for cost control</span>
+  dynamicCanvas: <span class="tok-k">false</span>,  <span class="tok-c">// re-upload a canvas background every frame</span>
+  <span class="tok-c">/* …any parameter from the table above… */</span>
+});
+
+g.<span class="tok-f">set</span>({ refraction: <span class="tok-s">0.4</span> });   <span class="tok-c">// patch params live</span>
+g.<span class="tok-f">get</span>(<span class="tok-s">'refraction'</span>);          <span class="tok-c">// read one — or g.get() for all</span>
+g.<span class="tok-f">setBackground</span>(src);          <span class="tok-c">// swap the WebGL texture</span>
+g.<span class="tok-f">setPosition</span>(x, y);           <span class="tok-c">// move a constructed panel</span>
+g.<span class="tok-f">destroy</span>();                   <span class="tok-c">// remove + free GPU resources</span>
+g.element;  g.content;            <span class="tok-c">// the panel node · your content slot</span>
+g.mode;                           <span class="tok-c">// 'webgl' | 'dom'</span>
+g.tier;                           <span class="tok-c">// 'webgl' | 'displacement' | 'blur' | 'flat'</span>
+
+<span class="tok-k">const</span> panels = <span class="tok-f">glassify</span>(<span class="tok-s">'.card'</span>, {   <span class="tok-c">// adopt existing element(s) → LiquidGlass[]</span>
+  keepBackground: <span class="tok-k">false</span>,           <span class="tok-c">// true = keep the element's own background</span>
+  <span class="tok-c">/* …params… */</span>
+});
+
+<span class="tok-f">detectDomCapabilities</span>();          <span class="tok-c">// { blur, displacement, tier } — before you commit</span></pre>
+  </section>
+
+  <!-- LIMITS ----------------------------------------------------------------------- -->
+  <section class="model">
+    <h2>What is <em>not</em> possible (be honest with yourself)</h2>
+    <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.6">
+      <li><strong>Live-page refraction is Chromium-only.</strong> <code>glassify()</code> refracts the real DOM behind it
+        only on Blink; Firefox and Safari (all iOS browsers) fall back to blur. This is an engine limit, not a bug.</li>
+      <li><strong>WebGL can't sample arbitrary live DOM.</strong> It refracts a texture you hand it. To refract page
+        content cross-browser you'd have to snapshot that content into a texture yourself (expensive, and not truly live).</li>
+      <li><strong>Cross-origin media taints the texture.</strong> An image/video/canvas from another origin without CORS
+        can't be uploaded to WebGL — the panel silently renders without refraction. Serve same-origin or send CORS headers.</li>
+      <li><strong>You can't refract what you can't provide or place behind the glass</strong> — e.g. a cross-origin
+        <code>&lt;iframe&gt;</code>'s pixels.</li>
+      <li><strong><code>glassify()</code> clears the element's own background</strong> by default (that opaque fill is what
+        you'd otherwise see instead of the page). Pass <code>keepBackground: true</code> to keep it.</li>
+      <li><strong>No true iOS-compositor parity.</strong> The web has no API to sample the live rendered backdrop as a
+        texture; the two renderers here are the closest the platform allows.</li>
+    </ul>
+  </section>
+
+  <section class="filemap">
+    <h2>Where each piece lives</h2>
+    <ul>
+      <li><code>src/liquid-glass.js</code> — the <code>LiquidGlass</code> class, <code>glassify()</code>, renderer selection, the adopt path.</li>
+      <li><code>src/glass-pool.js</code> — the WebGL renderer: one shared context, one instanced draw for every panel, culling, immutable texture upload.</li>
+      <li><code>src/shaders.js</code> — the GLSL: SDF mask, analytic bevel normal, refraction, chromatic aberration, adaptive blur.</li>
+      <li><code>src/dom-renderer.js</code> — the DOM renderer: baked displacement map + <code>backdrop-filter</code>, capability tiers (<code>displacement</code> / <code>blur</code> / <code>flat</code>).</li>
+      <li><code>src/params.js</code> — every tunable parameter, its range and default.</li>
+      <li><code>src/web-component.js</code>, <code>src/react.js</code> — the two wrappers.</li>
+    </ul>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px">
+      See also: <a href="./index.html">index.html</a> (WebGL playground) ·
+      <a href="./ott.html">ott.html</a> (glassify over live content) ·
+      <a href="./check.html">check.html</a> (capability diagnostics).
+    </p>
+  </section>
+
+  <script type="module">
+    import { LiquidGlass, glassify, detectDomCapabilities } from './src/liquid-glass.js';
+
+    document.getElementById('tierBadge').textContent = detectDomCapabilities().tier;
+
+    // A self-contained "image": a canvas texture so the demo needs no network.
+    function makeTexture(w, h) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const x = c.getContext('2d');
+      const g = x.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#ff7a59'); g.addColorStop(.45, '#7a5cff'); g.addColorStop(1, '#2ec5ff');
+      x.fillStyle = g; x.fillRect(0, 0, w, h);
+      x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 1;
+      for (let i = 0; i <= w; i += 22) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, h); x.stroke(); }
+      for (let j = 0; j <= h; j += 22) { x.beginPath(); x.moveTo(0, j); x.lineTo(w, j); x.stroke(); }
+      x.fillStyle = 'rgba(255,255,255,.85)'; x.font = 'bold 34px sans-serif';
+      x.fillText('REFRACT', 26, h / 2 + 12);
+      return c;
+    }
+
+    // --- Recipe 1: WebGL over an image ---
+    (function () {
+      const stage = document.getElementById('stage-webgl');
+      const tex = makeTexture(stage.clientWidth || 460, 230);
+      tex.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
+      stage.appendChild(tex);
+      const glass = new LiquidGlass({
+        stage, background: tex, renderer: 'webgl',
+        width: 220, height: 120, x: (stage.clientWidth - 220) / 2 || 120, y: 55,
+        refraction: 0.85, chromAberration: 0.12, blurAmount: 0.06,
+        edgeHighlight: 0.5, specular: 0.7, cornerRadius: 30, zRadius: 26,
+      });
+      glass.content.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;text-shadow:0 1px 8px rgba(0,0,0,.5)';
+      glass.content.textContent = 'WebGL · refracts a texture';
+      stage.appendChild(glass.element);
+    })();
+
+    // --- Recipe 2: WebGL over an animated (dynamic) canvas ---
+    (function () {
+      const stage = document.getElementById('stage-video');
+      const w = stage.clientWidth || 460, h = 230;
+      const live = document.createElement('canvas');
+      live.width = w; live.height = h;
+      live.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+      stage.appendChild(live);
+      const ctx = live.getContext('2d');
+      function frame(t) {
+        const g = ctx.createLinearGradient(0, 0, w, h);
+        const a = (Math.sin(t / 900) + 1) / 2;
+        g.addColorStop(0, `hsl(${200 + a * 90},90%,60%)`);
+        g.addColorStop(1, `hsl(${330 - a * 90},90%,55%)`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,.9)';
+        for (let i = 0; i < 7; i++) {
+          const x = ((t / 12 + i * 90) % (w + 80)) - 40;
+          ctx.beginPath(); ctx.arc(x, h / 2 + Math.sin(t / 500 + i) * 40, 16, 0, 7); ctx.fill();
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+      const glass = new LiquidGlass({
+        stage, background: live, dynamicCanvas: true, renderer: 'webgl',
+        width: 220, height: 120, x: (w - 220) / 2, y: 55,
+        refraction: 0.75, distortion: 0.12, chromAberration: 0.14,
+        edgeHighlight: 0.5, cornerRadius: 30, zRadius: 24,
+      });
+      glass.content.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;text-shadow:0 1px 8px rgba(0,0,0,.5)';
+      glass.content.textContent = 'live canvas · every frame';
+      stage.appendChild(glass.element);
+    })();
+
+    // --- Recipe 3: glassify live DOM ---
+    (function () {
+      const grads = ['#ff8a5c','#7a5cff','#2ec5ff','#ff5db1','#ffd36e','#5effc8','#9a7bff','#ff9eb8'];
+      const words = ['LIVE','DOM','TEXT','SCROLL','VIDEO','CARD','IMG','LIST','NAV','GRID','TILE','ROW'];
+      const bg = document.getElementById('live-bg');
+      let html = '';
+      for (let i = 0; i < 18; i++) html += `<div class="tile" style="background:${grads[i % grads.length]}">${words[i % words.length]}</div>`;
+      bg.innerHTML = html;
+
+      const [card] = glassify('#demo-card', {
+        refraction: 0.72, blurAmount: 0.12, edgeHighlight: 0.5,
+        chromAberration: 0.08, cornerRadius: 22, zRadius: 20, tintStrength: 0.06,
+      });
+      // prove children stay interactive
+      document.getElementById('demo-card').querySelector('button')
+        .addEventListener('click', (e) => { e.target.textContent = 'clicked ✓'; setTimeout(() => e.target.textContent = 'Click me', 900); });
+    })();
+
+    // --- Recipe 5: many panels, one shared context + one instanced draw ---
+    (function () {
+      const stage = document.getElementById('stage-many');
+      const w = stage.clientWidth || 460, h = 230;
+      const tex = makeTexture(w, h);
+      tex.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+      stage.appendChild(tex);
+      const cols = 6, rows = 3, pad = 14, gap = 8;
+      const pw = (w - pad * 2 - gap * (cols - 1)) / cols;
+      const ph = (h - pad * 2 - gap * (rows - 1)) / rows;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const g = new LiquidGlass({
+          stage, background: tex, renderer: 'webgl',
+          width: pw, height: ph, x: pad + c * (pw + gap), y: pad + r * (ph + gap),
+          refraction: 0.7, chromAberration: 0.08, cornerRadius: 14, zRadius: 14, edgeHighlight: 0.4,
+        });
+        stage.appendChild(g.element);
+      }
+    })();
+
+    // --- Recipe 6: interactive glass (button + floating/drag) ---
+    (function () {
+      const stage = document.getElementById('stage-interactive');
+      const w = stage.clientWidth || 460, h = 230;
+      const tex = makeTexture(w, h);
+      tex.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+      stage.appendChild(tex);
+      const g = new LiquidGlass({
+        stage, background: tex, renderer: 'webgl',
+        width: 150, height: 64, x: 24, y: 70,
+        button: true, floating: true,
+        refraction: 0.82, chromAberration: 0.12, edgeHighlight: 0.5, specular: 0.7, cornerRadius: 32, zRadius: 26,
+      });
+      g.content.style.cssText = 'display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;text-shadow:0 1px 8px rgba(0,0,0,.5);cursor:grab;user-select:none';
+      g.content.textContent = 'Drag / press me';
+      stage.appendChild(g.element);
+    })();
+  </script>
+</body>
+</html>

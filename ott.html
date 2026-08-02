@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Liquid Glass — glassify() over live content</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+      --ink: #eef4ff;
+      --muted: #b8c4de;
+      --line: rgba(255,255,255,.16);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #05060f; color: var(--ink); }
+    button, input, select { font: inherit; color: inherit; }
+    a { color: inherit; }
+
+    /* Fixed wallpaper — the base the whole page is painted over. */
+    #wall {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(70% 55% at 18% 12%, rgba(255,138,92,.55), transparent 60%),
+        radial-gradient(60% 60% at 88% 22%, rgba(122,92,255,.55), transparent 62%),
+        radial-gradient(80% 70% at 60% 100%, rgba(46,197,255,.42), transparent 60%),
+        linear-gradient(150deg, #1a1140 0%, #2a1150 40%, #08213f 100%);
+    }
+
+    /* Scrolling content — the "live page" the glass chrome refracts. */
+    #scroll {
+      position: fixed; inset: 0; z-index: 1;
+      overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+      padding: 84px clamp(16px, 4vw, 40px) 132px;
+    }
+    #scroll::-webkit-scrollbar { width: 0; }
+
+    .hero { max-width: 1100px; margin: 8px auto 22px; }
+    .kicker { text-transform: uppercase; letter-spacing: 2.4px; font-size: 11px; font-weight: 800; color: #ffb0cb; }
+    .hero h1 { margin: 10px 0 8px; font-size: clamp(28px, 5vw, 56px); line-height: .96; letter-spacing: -.01em; max-width: 16ch; text-shadow: 0 10px 34px rgba(0,0,0,.5); }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.5; max-width: 62ch; font-size: 14px; }
+    .hero code { background: rgba(255,255,255,.1); border-radius: 6px; padding: 1px 6px; font-size: .92em; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .legend span { border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.06); padding: 6px 11px; font-size: 11px; }
+
+    /* Poster rails — high-frequency live content that makes refraction obvious. */
+    .rail-wrap { max-width: 1100px; margin: 0 auto 22px; }
+    .rail-title { font-size: 13px; font-weight: 700; letter-spacing: .3px; margin: 0 0 10px; color: #e6eeff; }
+    .rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding-bottom: 4px; }
+    .rail::-webkit-scrollbar { height: 0; }
+    .poster {
+      aspect-ratio: 2 / 3; border-radius: 14px; padding: 12px; position: relative; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.10);
+    }
+    .poster::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.5)); }
+    .poster b { position: relative; z-index: 1; font-size: 13px; line-height: 1.2; }
+    .poster small { position: relative; z-index: 1; color: rgba(255,255,255,.75); font-size: 11px; }
+
+    /* ---- The elements we hand to glassify(): plain HTML, styled normally. ---- */
+    .g-surface { position: relative; } /* glassify clears the background; keep borders/radius */
+
+    #topbar {
+      position: fixed; top: 14px; left: clamp(16px, 4vw, 40px); right: clamp(16px, 4vw, 40px); z-index: 20;
+      display: flex; align-items: center; gap: 16px; height: 58px; padding: 0 16px;
+      border-radius: 18px; border: 1px solid var(--line); background: rgba(12,16,32,.5);
+    }
+    #topbar .brand { font-weight: 800; font-size: 18px; background: linear-gradient(90deg,#fff,#9ec1ff 55%,#ff9eb8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    #topbar nav { display: flex; gap: 6px; margin-left: 4px; }
+    #topbar nav a { text-decoration: none; font-size: 13px; font-weight: 600; padding: 7px 11px; border-radius: 9px; opacity: .92; }
+    #topbar nav a:hover { background: rgba(255,255,255,.12); }
+    #topbar .search { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    #topbar .search input { width: clamp(80px, 22vw, 220px); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(255,255,255,.08); padding: 8px 14px; }
+    #topbar .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#ff8a5c,#7a5cff); border: 1px solid rgba(255,255,255,.3); }
+
+    .promo {
+      max-width: 1100px; margin: 0 auto 24px; padding: 22px; border-radius: 22px;
+      border: 1px solid var(--line); background: rgba(14,18,36,.4);
+      display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+    }
+    .promo .art { width: 132px; height: 132px; border-radius: 18px; flex: none; box-shadow: 0 12px 30px rgba(0,0,0,.4); background: linear-gradient(135deg,#ff5db1,#7a5cff 55%,#2ec5ff); }
+    .promo .txt { flex: 1; min-width: 220px; }
+    .promo h3 { margin: 0 0 6px; font-size: 22px; }
+    .promo p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 52ch; }
+    .btn { cursor: pointer; font-weight: 700; border: 1px solid rgba(255,255,255,.22); border-radius: 11px; background: rgba(255,255,255,.1); padding: 9px 16px; }
+    .btn.primary { background: linear-gradient(135deg,#ff8a5c,#ff5db1); border-color: transparent; }
+    .chip { border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(255,255,255,.08); padding: 6px 13px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+    #filters {
+      max-width: 1100px; margin: 0 auto 24px; padding: 12px 14px; border-radius: 16px;
+      border: 1px solid var(--line); background: rgba(14,18,36,.4);
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    #filters .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; color: #cfdcff; opacity: .8; margin-right: 4px; }
+
+    #player {
+      position: fixed; left: clamp(16px, 4vw, 40px); right: clamp(16px, 4vw, 40px); bottom: 16px; z-index: 20;
+      padding: 14px 18px; border-radius: 20px; border: 1px solid var(--line); background: rgba(12,16,32,.5);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    #player .track { display: flex; align-items: center; gap: 12px; }
+    #player .art { width: 42px; height: 42px; border-radius: 10px; flex: none; background: linear-gradient(135deg,#2ec5ff,#7a5cff); }
+    #player .meta { flex: 1; min-width: 0; }
+    #player .meta b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #player .meta small { color: var(--muted); font-size: 12px; }
+    #player .transport { display: flex; align-items: center; gap: 6px; }
+    #player .transport button { cursor: pointer; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.1); font-size: 15px; }
+    #player .transport .play { width: 48px; height: 48px; background: linear-gradient(135deg,#ff8a5c,#ff5db1); border-color: transparent; font-size: 18px; }
+    #player .seek { display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+    #player .seek input[type=range] { flex: 1; accent-color: #ff9ec4; }
+
+    /* Glass Lab */
+    #lab {
+      position: fixed; top: 84px; right: 16px; width: 268px; max-height: calc(100dvh - 232px);
+      overflow: auto; z-index: 30; border-radius: 16px; padding: 12px 14px 14px;
+      border: 1px solid rgba(255,255,255,.12); background: rgba(9,12,24,.82);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); font-size: 12px;
+    }
+    #lab h2 { margin: 2px 0 2px; font-size: 13px; }
+    #lab .tier { font-size: 11px; color: #9fe6c0; margin: 0 0 8px; }
+    #lab .hint { margin: 0 0 8px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .ctrl { margin: 9px 0; border-top: 1px solid rgba(255,255,255,.08); padding-top: 9px; }
+    .ctrl label { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .ctrl .name { font-weight: 600; }
+    .ctrl .val { min-width: 44px; text-align: right; opacity: .85; font-variant-numeric: tabular-nums; }
+    .ctrl input[type=range] { width: 100%; margin-top: 6px; accent-color: #8cb3ff; }
+    .ctrl .doc { display: block; margin-top: 3px; font-size: 10px; color: #a9b5d1; opacity: .8; line-height: 1.35; }
+    .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .actions button { flex: 1; min-width: 78px; border-radius: 9px; border: 1px solid rgba(255,255,255,.16); background: rgba(130,170,255,.18); color: #edf4ff; padding: 7px; cursor: pointer; }
+
+    .toast { position: fixed; left: 50%; bottom: 108px; transform: translateX(-50%) translateY(16px); opacity: 0; pointer-events: none; z-index: 50; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; background: rgba(10,16,30,.85); padding: 10px 14px; font-size: 13px; transition: opacity .24s, transform .24s; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 1040px) {
+      #lab { top: auto; bottom: 120px; left: 12px; right: 12px; width: auto; max-height: 210px; }
+      #player { bottom: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="wall"></div>
+
+  <main id="scroll">
+    <section class="hero">
+      <div class="kicker">Liquid Glass · glassify()</div>
+      <h1>Glassify anything, over the live page.</h1>
+      <p>
+        Every panel below — the header, the promo card, the filter bar, the player —
+        is <em>ordinary HTML</em> turned to glass in place with one call:
+        <code>glassify('#topbar, .promo, …')</code>. There is no captured texture and no
+        snapshot: the glass refracts whatever is actually behind it, so scroll the posters
+        and watch them bend through the fixed chrome.
+      </p>
+      <div class="legend">
+        <span>real DOM, adopted in place</span>
+        <span>refracts live scrolling content</span>
+        <span>children stay interactive</span>
+      </div>
+    </section>
+
+    <div class="rail-wrap"><h2 class="rail-title">Continue Watching</h2><div class="rail" id="rail1"></div></div>
+
+    <article class="promo g-surface" id="promo">
+      <div class="art"></div>
+      <div class="txt">
+        <h3>Neon Horizon</h3>
+        <p>A glassified content card sitting in the normal document flow — it refracts the wallpaper and posters behind it, and its buttons still click.</p>
+        <div class="row" style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn primary" data-toast="Playing Neon Horizon">▶ Play</button>
+          <button class="btn" data-toast="Added to list">+ My List</button>
+        </div>
+      </div>
+    </article>
+
+    <nav class="g-surface" id="filters">
+      <span class="lbl">Filter</span>
+      <button class="chip" data-toast="All">All</button>
+      <button class="chip" data-toast="Films">Films</button>
+      <button class="chip" data-toast="Series">Series</button>
+      <button class="chip" data-toast="Live">Live</button>
+      <button class="chip" data-toast="Kids">Kids</button>
+    </nav>
+
+    <div class="rail-wrap"><h2 class="rail-title">Trending Now</h2><div class="rail" id="rail2"></div></div>
+    <div class="rail-wrap"><h2 class="rail-title">New Releases</h2><div class="rail" id="rail3"></div></div>
+  </main>
+
+  <!-- Fixed glass chrome: refracts the scrolling content beneath it. -->
+  <header class="g-surface" id="topbar">
+    <span class="brand">GlassTV</span>
+    <nav>
+      <a href="#" data-toast="Home">Home</a>
+      <a href="#" data-toast="Movies">Movies</a>
+      <a href="#" data-toast="Series">Series</a>
+      <a href="#" data-toast="My List">My List</a>
+    </nav>
+    <div class="search">
+      <input type="text" placeholder="Search titles…" />
+      <div class="avatar" title="Account"></div>
+    </div>
+  </header>
+
+  <footer class="g-surface" id="player">
+    <div class="track">
+      <div class="art"></div>
+      <div class="meta"><b>Neon Horizon — S1 · E4</b><small>Now playing · 4K HDR</small></div>
+      <div class="transport">
+        <button data-toast="Previous">◀◀</button>
+        <button class="play" data-toast="Pause">❚❚</button>
+        <button data-toast="Next">▶▶</button>
+      </div>
+    </div>
+    <div class="seek"><span>18:42</span><input type="range" min="0" max="100" value="41" /><span>46:20</span></div>
+  </footer>
+
+  <aside id="lab">
+    <h2>Glass Lab</h2>
+    <p class="tier" id="tierline">tier: …</p>
+    <p class="hint">Tuning every glassified surface together. All of this is the DOM renderer refracting the live page.</p>
+    <div id="controls"></div>
+    <div class="actions">
+      <button id="reset" type="button">Reset</button>
+      <button id="prism" type="button">Prism</button>
+      <button id="frost" type="button">Frost</button>
+      <button id="subtle" type="button">Subtle</button>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    import { glassify, detectDomCapabilities, PARAM_DEFS, DEFAULTS } from './src/liquid-glass.js';
+
+    // --- build the live content the glass will refract -----------------------
+    const TITLES = [
+      ['Aurora Drift', 'Sci-Fi'], ['Midnight Echo', 'Thriller'], ['Solaris Bloom', 'Drama'],
+      ['Crimson Vault', 'Action'], ['Paper Lanterns', 'Romance'], ['The Deep Field', 'Docu'],
+      ['Velvet Static', 'Mystery'], ['Golden Hour', 'Comedy'], ['Ion Trails', 'Sci-Fi'],
+      ['Harbor Lights', 'Drama'], ['Nine Lives', 'Animation'], ['Static Bloom', 'Horror'],
+      ['Cobalt Coast', 'Travel'], ['Ember & Ash', 'Fantasy'], ['Quiet Signals', 'Indie'],
+      ['Prism Break', 'Action'], ['Slow Comets', 'Drama'], ['Fable Engine', 'Fantasy'],
+    ];
+    const GRADS = [
+      'linear-gradient(135deg,#ff8a5c,#ff5db1)', 'linear-gradient(135deg,#7a5cff,#2ec5ff)',
+      'linear-gradient(135deg,#2ec5ff,#5effc8)', 'linear-gradient(135deg,#ff5db1,#7a5cff)',
+      'linear-gradient(135deg,#ffd36e,#ff5db1)', 'linear-gradient(135deg,#5effc8,#2ec5ff)',
+      'linear-gradient(135deg,#ff8a5c,#ffd36e)', 'linear-gradient(135deg,#9a7bff,#ff9eb8)',
+    ];
+    let seed = 0;
+    function fillRail(id, n) {
+      const rail = document.getElementById(id);
+      let html = '';
+      for (let i = 0; i < n; i++) {
+        const [t, tag] = TITLES[(seed++) % TITLES.length];
+        const g = GRADS[(seed * 3) % GRADS.length];
+        html += `<div class="poster" style="background:${g}"><b>${t}</b><small>${tag}</small></div>`;
+      }
+      rail.innerHTML = html;
+    }
+    fillRail('rail1', 8); fillRail('rail2', 9); fillRail('rail3', 9);
+
+    // --- glassify the chrome -------------------------------------------------
+    const BASE = {
+      cornerRadius: 18, zRadius: 16, refraction: 0.7, chromAberration: 0.1,
+      edgeHighlight: 0.5, specular: 0.6, fresnel: 1.2, tintStrength: 0.08,
+      blurAmount: 0.28, shadowSpread: 18, shadowOpacity: 0.32,
+    };
+
+    // Each entry is [selector, per-surface overrides]. Corner radii match the CSS
+    // so the glass lens lines up with each element's own rounded box.
+    const SURFACES = [
+      ['#topbar',  { cornerRadius: 18, blurAmount: 0.3,  refraction: 0.66, button: true }],
+      ['#player',  { cornerRadius: 20, blurAmount: 0.26, refraction: 0.74 }],
+      ['#promo',   { cornerRadius: 22, blurAmount: 0.22, refraction: 0.64 }],
+      ['#filters', { cornerRadius: 16, blurAmount: 0.34, refraction: 0.6,  button: true }],
+    ];
+
+    const glasses = [];
+    SURFACES.forEach(([sel, opts]) => {
+      for (const g of glassify(sel, { ...BASE, ...opts })) {
+        g.__base = { ...BASE, ...opts };
+        glasses.push(g);
+      }
+    });
+
+    document.getElementById('tierline').textContent =
+      `renderer: ${glasses[0]?.mode} · tier: ${glasses[0]?.tier} (caps: ${detectDomCapabilities().tier})`;
+
+    // --- Glass Lab: tune every surface together ------------------------------
+    const ui = {};
+    const PRESETS = {
+      reset:  { ...BASE },
+      prism:  { refraction: 1.0, chromAberration: 0.26, edgeHighlight: 0.68, blurAmount: 0.14, tintStrength: 0.06 },
+      frost:  { refraction: 0.4, chromAberration: 0.02, edgeHighlight: 0.22, blurAmount: 0.8,  tintStrength: 0.18 },
+      subtle: { refraction: 0.6, chromAberration: 0.04, edgeHighlight: 0.34, blurAmount: 0.24, tintStrength: 0.08 },
+    };
+
+    function buildControls() {
+      const host = document.getElementById('controls');
+      ['refraction', 'chromAberration', 'edgeHighlight', 'blurAmount', 'tintStrength'].forEach((key) => {
+        const def = PARAM_DEFS[key];
+        if (!def || def.type !== 'number') return;
+        const step = (def.max - def.min) <= 4 ? 0.01 : 1;
+        const wrap = document.createElement('div');
+        wrap.className = 'ctrl';
+        wrap.innerHTML = `
+          <label><span class="name">${key}</span><span class="val"></span></label>
+          <input type="range" min="${def.min}" max="${def.max}" step="${step}" value="${BASE[key]}">
+          <span class="doc">${def.doc || ''}</span>`;
+        const input = wrap.querySelector('input');
+        const val = wrap.querySelector('.val');
+        const show = () => { val.textContent = Number(input.value).toFixed(step < 1 ? 2 : 0); };
+        show();
+        input.addEventListener('input', () => {
+          const v = Number(input.value);
+          glasses.forEach((g) => g.set({ [key]: v }));
+          show();
+        });
+        ui[key] = { input, show, defaultValue: BASE[key] };
+        host.appendChild(wrap);
+      });
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toast._id);
+      toast._id = setTimeout(() => t.classList.remove('show'), 1100);
+    }
+
+    function applyPreset(name) {
+      const patch = PRESETS[name];
+      if (!patch) return;
+      glasses.forEach((g) => g.set(patch));
+      Object.entries(patch).forEach(([k, v]) => { if (ui[k]) { ui[k].input.value = v; ui[k].show(); } });
+      toast(`${name} preset`);
+    }
+    function reset() {
+      glasses.forEach((g) => g.set({ ...DEFAULTS, ...g.__base }));
+      Object.values(ui).forEach((cfg) => { cfg.input.value = cfg.defaultValue; cfg.show(); });
+      toast('reset');
+    }
+
+    buildControls();
+    document.getElementById('reset').addEventListener('click', reset);
+    document.getElementById('prism').addEventListener('click', () => applyPreset('prism'));
+    document.getElementById('frost').addEventListener('click', () => applyPreset('frost'));
+    document.getElementById('subtle').addEventListener('click', () => applyPreset('subtle'));
+
+    // Proof the adopted children stay interactive.
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('[data-toast]');
+      if (el) { e.preventDefault(); toast(el.dataset.toast); }
+    });
+  </script>
+</body>
+</html>

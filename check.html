@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liquid Glass — diagnostics</title>
+<style>
+  :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; color: #eef; background: #0a0d18; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { opacity: .55; font-size: 12px; margin-bottom: 20px; }
+
+  #report { font-size: 12.5px; line-height: 1.9; border: 1px solid rgba(255,255,255,.14);
+            border-radius: 10px; padding: 12px 14px; margin-bottom: 24px; background: #10152a; }
+  #report b { display: inline-block; min-width: 200px; opacity: .6; font-weight: 400; }
+  .pass { color: #6ee7a8; } .fail { color: #ff8b8b; } .warn { color: #ffce6e; }
+
+  .lab { position: relative; height: 240px; border-radius: 12px; overflow: hidden;
+         margin: 10px 0 26px; }
+  /* Deliberately harsh backdrop: a fine grid makes displacement unmissable. */
+  .lab .bg { position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.35) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.35) 0 1px, transparent 1px 24px),
+      linear-gradient(135deg, #ff7a59, #7a5cff 45%, #2ec5ff);
+  }
+  .lab .cap { position: absolute; left: 12px; top: 10px; font-size: 11px;
+              background: rgba(0,0,0,.45); padding: 3px 7px; border-radius: 6px; }
+  .probe { position: absolute; left: 50%; top: 50%; width: 260px; height: 120px;
+           transform: translate(-50%, -50%); border-radius: 60px; }
+  h2 { font-size: 13px; margin: 0; font-weight: 600; }
+  h2 span { opacity: .5; font-weight: 400; }
+</style>
+</head>
+<body>
+<h1>Liquid Glass diagnostics</h1>
+<div class="sub">Each test isolates one layer. Read them top to bottom — the first failure is the cause.</div>
+
+<div id="report">loading…</div>
+
+<h2>1. Baseline <span>— plain <code>backdrop-filter: blur()</code>, no framework</span></h2>
+<div class="lab"><div class="bg"></div><div class="cap">expect: blurred grid inside the pill</div>
+  <div class="probe" id="p1" style="backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)"></div>
+</div>
+
+<h2>2. Raw displacement <span>— hand-written SVG filter, no framework</span></h2>
+<div class="lab"><div class="bg"></div><div class="cap">expect: grid lines bent into a lens at the rim</div>
+  <div class="probe" id="p2"></div>
+</div>
+
+<h2>3. Framework, constructed panel <span>— new LiquidGlass()</span></h2>
+<div class="lab" id="lab3"><div class="bg"></div><div class="cap">expect: same as test 2, plus sheen</div></div>
+
+<h2>4. Framework, glassify() <span>— an existing styled card, adopted in place</span></h2>
+<div class="lab" id="lab4"><div class="bg"></div><div class="cap">expect: card text stays sharp and clickable, background bends</div>
+  <div class="probe" id="card" style="background:rgba(20,26,48,.9);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer">click me</div>
+</div>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <filter id="rawlens" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse"
+          color-interpolation-filters="sRGB" x="0" y="0" width="260" height="120">
+    <feImage id="rawmap" result="map" preserveAspectRatio="none" x="0" y="0" width="260" height="120"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" scale="90"
+                       xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</defs></svg>
+
+<script type="module">
+const out = [];
+const row = (k, v, cls) => out.push(`<div><b>${k}</b><span class="${cls || ''}">${v}</span></div>`);
+const errors = [];
+addEventListener('error', (e) => { errors.push(e.message); paint(); });
+
+// --- test 2: build a lens map by hand, independent of the library ----------
+(function rawLens() {
+  const W = 260, H = 120, R = 60, BAND = 34;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const im = ctx.createImageData(W, H);
+  const sd = (px, py) => {
+    const bx = W / 2 - 1, by = H / 2 - 1, r = Math.min(R, Math.min(bx, by));
+    const qx = Math.abs(px) - bx + r, qy = Math.abs(py) - by + r;
+    return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r;
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const px = x - W / 2, py = y - H / 2;
+    const inside = -sd(px, py);
+    let dx = 0, dy = 0;
+    if (inside > 0 && inside < BAND) {
+      const e = 1;
+      const gx = (sd(px + e, py) - sd(px - e, py)) / (2 * e);
+      const gy = (sd(px, py + e) - sd(px, py - e)) / (2 * e);
+      const t = 1 - inside / BAND;
+      dx = gx * t; dy = gy * t;
+    }
+    const p = (y * W + x) * 4;
+    im.data[p] = 128 + dx * 127;
+    im.data[p + 1] = 128 + dy * 127;
+    im.data[p + 2] = 128;
+    im.data[p + 3] = 255;
+  }
+  ctx.putImageData(im, 0, 0);
+  const url = c.toDataURL('image/png');
+  const fe = document.getElementById('rawmap');
+  fe.setAttribute('href', url);
+  fe.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);
+  const el = document.getElementById('p2');
+  el.style.backdropFilter = 'blur(2px) url(#rawlens)';
+  el.style.webkitBackdropFilter = 'blur(2px) url(#rawlens)';
+})();
+
+// --- environment report ----------------------------------------------------
+const sup = (p, v) => { try { return CSS.supports(p, v); } catch { return false; } };
+row('protocol', location.protocol,
+  location.protocol === 'file:' ? 'fail' : 'pass');
+if (location.protocol === 'file:') {
+  row('→ WARNING', 'ES modules are blocked over file://. Serve the folder instead: npx serve', 'fail');
+}
+row('backdrop-filter: blur()', sup('backdrop-filter', 'blur(4px)') || sup('-webkit-backdrop-filter', 'blur(4px)'));
+row('backdrop-filter: url()', sup('backdrop-filter', 'url("#x")'));
+row('WebGL2', (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })());
+row('devicePixelRatio', devicePixelRatio);
+row('userAgent', navigator.userAgent.slice(0, 90));
+
+function paint() {
+  document.getElementById('report').innerHTML =
+    out.join('') + (errors.length
+      ? `<div><b>module errors</b><span class="fail">${errors.join(' | ')}</span></div>`
+      : `<div><b>module errors</b><span class="pass">none</span></div>`);
+}
+paint();
+
+// --- tests 3 & 4: the framework itself -------------------------------------
+try {
+  const { LiquidGlass, glassify, detectDomCapabilities } = await import('./src/liquid-glass.js');
+  const caps = detectDomCapabilities ? detectDomCapabilities() : null;
+
+  const lab3 = document.getElementById('lab3');
+  const g = new LiquidGlass({
+    stage: lab3, width: 260, height: 120, cornerRadius: 60, zRadius: 34,
+    refraction: 0.7, blurAmount: 0.12, edgeHighlight: 0.4, specular: 0.7,
+    chromAberration: 0.06,
+  });
+  g.element.style.left = 'calc(50% - 130px)';
+  g.element.style.top = 'calc(50% - 60px)';
+  lab3.appendChild(g.element);
+
+  const cards = glassify('#card', {
+    stage: document.getElementById('lab4'),
+    refraction: 0.7, blurAmount: 0.12, edgeHighlight: 0.4, keepBackground: false,
+  });
+  const card = Array.isArray(cards) ? cards[0] : cards;
+  document.getElementById('card').addEventListener('click', () => {
+    row('card click', 'received — pointer events survived glassify', 'pass'); paint();
+  });
+
+  out.splice(0, 0, `<div><b>module import</b><span class="pass">ok</span></div>`);
+  row('resolved mode / tier', `${g.mode} / ${g.tier}`, g.tier === 'displacement' ? 'pass' : 'warn');
+  row('glassify mode / tier', `${card.mode} / ${card.tier}`, 'pass');
+  setTimeout(() => {
+    const bf = getComputedStyle(g._surface).backdropFilter ||
+               getComputedStyle(g._surface).webkitBackdropFilter;
+    row('computed backdrop-filter', bf || '(empty)', bf ? 'pass' : 'fail');
+    paint();
+  }, 120);
+} catch (err) {
+  out.splice(0, 0, `<div><b>module import</b><span class="fail">FAILED — ${err.message}</span></div>`);
+  paint();
+}
+</script>
+</body>
+</html>
