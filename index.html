@@ -137,11 +137,14 @@
 
     // Turned up: strong refraction, near-zero blur, pronounced chromatic
     // aberration — so the wallpaper visibly bends through the glass.
+    // zRadius (bevel depth) is the key: refraction only happens within a
+    // zRadius-wide band from the edge, so a large panel needs a large zRadius or
+    // its flat centre shows no bending at all. These are sized per panel below.
     const BASE = {
-      refraction: 0.92, chromAberration: 0.16, edgeHighlight: 0.4,
-      specular: 0.55, fresnel: 1.1, blurAmount: 0.0, tintStrength: 0.04,
-      distortion: 0.06,          // gentle liquid shimmer
-      cornerRadius: 22, zRadius: 18, shadowSpread: 22, shadowOpacity: 0.34,
+      refraction: 0.85, chromAberration: 0.18, edgeHighlight: 0.36,
+      specular: 0.5, fresnel: 1.1, blurAmount: 0.0, tintStrength: 0.03,
+      distortion: 0.05,          // gentle liquid shimmer
+      cornerRadius: 22, zRadius: 48, shadowSpread: 22, shadowOpacity: 0.34,
     };
 
     const wall = document.createElement('canvas'); // gradient + grid + wordmark, drawn per size
@@ -221,10 +224,12 @@
     drawWall();
     drawFrame(0);
 
-    mount(document.getElementById('nav'), { cornerRadius: 18, refraction: 0.7, blurAmount: 0.04, button: true });
-    mount(document.getElementById('hero-card'), { cornerRadius: 30, refraction: 0.9, edgeHighlight: 0.46 });
+    // zRadius scaled to each panel so the lens curvature covers a real fraction
+    // of it (a thin nav bar, a big domed hero, medium cards).
+    mount(document.getElementById('nav'), { cornerRadius: 22, zRadius: 28, refraction: 0.72, blurAmount: 0.03, button: true });
+    mount(document.getElementById('hero-card'), { cornerRadius: 30, zRadius: 170, refraction: 0.9, edgeHighlight: 0.42 });
     ['f1', 'f2', 'f3', 'f4'].forEach((id) =>
-      mount(document.getElementById(id), { cornerRadius: 20, button: true }));
+      mount(document.getElementById(id), { cornerRadius: 20, zRadius: 60, button: true }));
 
     document.getElementById('badgeTier').textContent = `${glasses[0].mode} · ${glasses[0].tier}`;
 
