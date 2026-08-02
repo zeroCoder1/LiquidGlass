@@ -1,18 +1,16 @@
 // Minimal offline-first service worker for the Liquid Glass PWA / TV app shell.
-const CACHE = 'liquid-glass-v4';
+const CACHE = 'liquid-glass-v5';
 const ASSETS = [
   './',
   './index.html',
+  './demo.html',
   './manifest.webmanifest',
   './icon.svg',
+  './src/liquid-glass.js',
   './src/params.js',
   './src/shaders.js',
-  './src/webgl-renderer.js',
   './src/glass-pool.js',
-  './src/css-fallback.js',
-  './src/liquid-glass.js',
-  './src/web-component.js',
-  './src/react.js',
+  './src/dom-renderer.js',
 ];
 
 self.addEventListener('install', (e) => {

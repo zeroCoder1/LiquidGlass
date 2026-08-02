@@ -4,10 +4,11 @@ A refracting glass material for the web. Two renderers, one API. Ships as ESM,
 CommonJS, and a plain-`<script>` global — so it drops into a React app, a
 vanilla HTML page, a PWA, or an HTML5 TV / webOS / Tizen set-top box.
 
-- Live demos in the repo: [`demo.html`](demo.html) (implementation guide with
-  live examples + code) · [`ott.html`](ott.html) (`glassify()` over live
-  content) · [`index.html`](index.html) (WebGL playground) ·
-  [`check.html`](check.html) (capability diagnostics).
+**▶ Try it live** ·
+[Playground](https://zerocoder1.github.io/LiquidGlass/) — tune every parameter ·
+[Implementation guide](https://zerocoder1.github.io/LiquidGlass/demo.html) — live examples + copy-paste code ·
+[glassify() over live content](https://zerocoder1.github.io/LiquidGlass/ott.html) ·
+[Diagnostics](https://zerocoder1.github.io/LiquidGlass/check.html)
 
 ## Which renderer do I use?
 
