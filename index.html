@@ -137,46 +137,70 @@
     const glasses = [];
 
     const BASE = {
-      refraction: 0.62, chromAberration: 0.07, edgeHighlight: 0.42,
-      specular: 0.6, fresnel: 1.15, blurAmount: 0.06, tintStrength: 0.06,
+      refraction: 0.72, chromAberration: 0.10, edgeHighlight: 0.46,
+      specular: 0.62, fresnel: 1.15, blurAmount: 0.05, tintStrength: 0.05,
+      distortion: 0.07,          // gentle liquid shimmer on the refraction itself
       cornerRadius: 22, zRadius: 18, shadowSpread: 22, shadowOpacity: 0.34,
     };
 
-    function drawBackground() {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // The wallpaper is animated so the glass has moving content to refract —
+    // that's what makes the bending, chromatic fringing and shimmer read. A
+    // static gradient looks like plain frosted glass; drifting light does not.
+    const wall = document.createElement('canvas'); // gradient + grid, drawn once
+    let DW = 0, DH = 0, DPR = 1;
+
+    function drawWall() {
+      DPR = Math.min(1.5, window.devicePixelRatio || 1);
       const w = bg.clientWidth || window.innerWidth;
       const h = bg.clientHeight || window.innerHeight;
-      bg.width = Math.round(w * dpr); bg.height = Math.round(h * dpr);
-      const c = bg.getContext('2d');
-      c.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      const g = c.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, '#ff8a5c'); g.addColorStop(0.4, '#7a5cff');
+      DW = Math.max(1, Math.round(w * DPR));
+      DH = Math.max(1, Math.round(h * DPR));
+      wall.width = bg.width = DW; wall.height = bg.height = DH;
+      const c = wall.getContext('2d');
+      const g = c.createLinearGradient(0, 0, DW, DH);
+      g.addColorStop(0, '#ff8a5c'); g.addColorStop(0.42, '#7a5cff');
       g.addColorStop(0.72, '#2ec5ff'); g.addColorStop(1, '#0b2a4a');
-      c.fillStyle = g; c.fillRect(0, 0, w, h);
-
-      [['#ffd36e', .5, .18, .22], ['#ff5db1', .5, .82, .28], ['#5effc8', .4, .6, .92]]
-        .forEach(([col, a, fx, fy]) => {
-          const rg = c.createRadialGradient(w * fx, h * fy, 0, w * fx, h * fy, Math.min(w, h) * 0.55);
-          rg.addColorStop(0, col + Math.round(a * 255).toString(16).padStart(2, '0'));
-          rg.addColorStop(1, col + '00');
-          c.fillStyle = rg; c.fillRect(0, 0, w, h);
-        });
-
-      c.strokeStyle = 'rgba(255,255,255,.13)'; c.lineWidth = 1; c.beginPath();
-      for (let x = 0; x <= w; x += 54) { c.moveTo(x, 0); c.lineTo(x, h); }
-      for (let y = 0; y <= h; y += 54) { c.moveTo(0, y); c.lineTo(w, y); }
+      c.fillStyle = g; c.fillRect(0, 0, DW, DH);
+      c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 1; c.beginPath();
+      const step = 54 * DPR;
+      for (let x = 0; x <= DW; x += step) { c.moveTo(x, 0); c.lineTo(x, DH); }
+      for (let y = 0; y <= DH; y += step) { c.moveTo(0, y); c.lineTo(DW, y); }
       c.stroke();
     }
 
-    // Insert a WebGL glass panel BEHIND the slot's flow content. inset:0 makes
-    // it fill the content-driven height, so nothing needs an explicit size.
+    // Soft coloured orbs that drift slowly in lazy loops (screen-blended glow).
+    const ORBS = [
+      { col: '#ffd36e', r: .42, x: .22, y: .30, ax: .15, ay: .12, sp: .00040 },
+      { col: '#ff5db1', r: .40, x: .80, y: .30, ax: .13, ay: .15, sp: .00052 },
+      { col: '#5effc8', r: .38, x: .58, y: .84, ax: .16, ay: .11, sp: .00033 },
+    ];
+
+    function drawFrame(t) {
+      const c = bg.getContext('2d');
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalCompositeOperation = 'source-over';
+      c.drawImage(wall, 0, 0);
+      c.globalCompositeOperation = 'screen';
+      const R = Math.min(DW, DH);
+      for (const o of ORBS) {
+        const cx = DW * (o.x + Math.cos(t * o.sp) * o.ax);
+        const cy = DH * (o.y + Math.sin(t * o.sp * 1.3) * o.ay);
+        const rad = R * o.r;
+        const rg = c.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        rg.addColorStop(0, o.col + '9c'); rg.addColorStop(1, o.col + '00');
+        c.fillStyle = rg; c.fillRect(0, 0, DW, DH);
+      }
+      c.globalCompositeOperation = 'source-over';
+    }
+
+    // Insert a WebGL glass panel BEHIND the slot's flow content. Four explicit
+    // offsets make it fill the content-driven height (the `inset` shorthand
+    // didn't reliably expand across the longhands here). dynamicCanvas re-uploads
+    // the animated wallpaper each frame so the refraction stays live.
     function mount(slot, opts) {
-      const glass = new LiquidGlass({ stage, background: bg, renderer: 'webgl', ...BASE, ...opts });
+      const glass = new LiquidGlass({ stage, background: bg, renderer: 'webgl', dynamicCanvas: true, ...BASE, ...opts });
       const el = glass.element;
       el.style.position = 'absolute';
-      // Fill the slot via all four offsets (overrides the constructor's left/top;
-      // the `inset` shorthand didn't reliably expand across the longhands here).
       el.style.top = el.style.right = el.style.bottom = el.style.left = '0';
       el.style.width = el.style.height = '';
       el.style.zIndex = '0';
@@ -185,22 +209,31 @@
       return glass;
     }
 
-    drawBackground();
+    drawWall();
+    drawFrame(0);
 
-    mount(document.getElementById('nav'), { cornerRadius: 18, refraction: 0.5, blurAmount: 0.12, button: true });
-    mount(document.getElementById('hero-card'), { cornerRadius: 30, refraction: 0.66, blurAmount: 0.05, edgeHighlight: 0.5 });
+    mount(document.getElementById('nav'), { cornerRadius: 18, refraction: 0.55, blurAmount: 0.1, button: true });
+    mount(document.getElementById('hero-card'), { cornerRadius: 30, refraction: 0.72, blurAmount: 0.04, edgeHighlight: 0.52 });
     ['f1', 'f2', 'f3', 'f4'].forEach((id) =>
       mount(document.getElementById(id), { cornerRadius: 20, button: true }));
 
     document.getElementById('badgeTier').textContent = `${glasses[0].mode} · ${glasses[0].tier}`;
 
+    // Our own loop animates the wallpaper; the library's shared loop re-uploads
+    // and redraws the glass (dynamicCanvas + distortion keep it awake).
+    function tick(now) { drawFrame(now); requestAnimationFrame(tick); }
+    requestAnimationFrame(tick);
+
     let rz;
     function refresh() {
-      drawBackground();
+      drawWall();
+      drawFrame(performance.now());   // repaint bg now, don't wait for the next frame
       glasses.forEach((g) => { g.setBackground(bg); g.set({}); });
     }
-    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(refresh, 120); });
-    window.addEventListener('load', refresh);
+    // A ResizeObserver fires when the wallpaper first gets a real size — even if
+    // the page loaded in a hidden/background tab at 0×0 — and on every viewport
+    // change, so the wallpaper and glass always match the current size.
+    new ResizeObserver(() => { clearTimeout(rz); rz = setTimeout(refresh, 120); }).observe(bg);
     stage.addEventListener('scroll', () => glasses.forEach((g) => g.set({})), { passive: true });
 
     if ('serviceWorker' in navigator) {
