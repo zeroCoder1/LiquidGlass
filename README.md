@@ -1,4 +1,4 @@
-![Liquid Glass Preview Top](assests/Screenshot%202026-08-03%20at%2012.02.44%E2%80%AFAM.png)
+![Liquid Glass Preview Bottom](assests/Screenshot%202026-08-03%20at%2012.03.23%E2%80%AFAM.png)
 
 A refracting glass material for the web. Two renderers, one API. Ships as ESM,
 CommonJS, and a plain-`<script>` global — so it drops into a React app, a
@@ -246,5 +246,3 @@ the glass a `background` texture and use the WebGL renderer.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-![Liquid Glass Preview Bottom](assests/Screenshot%202026-08-03%20at%2012.03.23%E2%80%AFAM.png)
