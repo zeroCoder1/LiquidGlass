@@ -1,12 +1,16 @@
-![Liquid Glass Preview Bottom](assests/Screenshot%202026-08-03%20at%2012.03.23%E2%80%AFAM.png)
+# Liquid Glass
+
+[![npm](https://img.shields.io/npm/v/@zerocoder1/liquid-glass.svg)](https://www.npmjs.com/package/@zerocoder1/liquid-glass)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![live demo](https://img.shields.io/badge/demo-live-ff5db1.svg)](https://zerocoder1.github.io/LiquidGlass/)
 
 A refracting glass material for the web. Two renderers, one API. Ships as ESM,
 CommonJS, and a plain-`<script>` global — so it drops into a React app, a
 vanilla HTML page, a PWA, or an HTML5 TV / webOS / Tizen set-top box.
 
+[![Liquid Glass preview](assets/preview-hero.png)](https://zerocoder1.github.io/LiquidGlass/)
+
 ### ▶ [See it live → zerocoder1.github.io/LiquidGlass](https://zerocoder1.github.io/LiquidGlass/)
-
-
 
 The home page shows the effect and links to the interactive playground, the
 implementation guide, and the demos.
@@ -36,13 +40,13 @@ DOM otherwise. Force it with `renderer: 'webgl'` or `renderer: 'dom'`.
 **npm** — React, bundlers, modern browsers:
 
 ```bash
-npm install liquid-glass
+npm install @zerocoder1/liquid-glass
 ```
 
 ```js
-import { LiquidGlass, glassify } from 'liquid-glass';
-import { LiquidGlassView } from 'liquid-glass/react';
-import { defineLiquidGlass } from 'liquid-glass/web-component';
+import { LiquidGlass, glassify } from '@zerocoder1/liquid-glass';
+import { LiquidGlassView } from '@zerocoder1/liquid-glass/react';
+import { defineLiquidGlass } from '@zerocoder1/liquid-glass/web-component';
 ```
 
 **CDN / `<script>` tag** — vanilla HTML, PWAs, and TV platforms
@@ -50,7 +54,7 @@ import { defineLiquidGlass } from 'liquid-glass/web-component';
 to ES2015 and exposes `window.LiquidGlass`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/liquid-glass/dist/liquid-glass.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zerocoder1/liquid-glass/dist/liquid-glass.global.min.js"></script>
 <script>
   const glass = new LiquidGlass({ stage, background });
   LiquidGlass.glassify('.card', { refraction: 0.6 });
@@ -67,7 +71,7 @@ Bundles in [`dist/`](dist): `liquid-glass.esm.js`, `liquid-glass.cjs`,
 ### 1. WebGL — refracts a texture you supply (works everywhere)
 
 ```js
-import { LiquidGlass } from 'liquid-glass';
+import { LiquidGlass } from '@zerocoder1/liquid-glass';
 
 const glass = new LiquidGlass({
   stage,                              // position: relative container
@@ -86,7 +90,7 @@ frame. Video backgrounds are dynamic automatically.
 ### 2. `glassify()` — turn existing DOM into glass in place
 
 ```js
-import { glassify } from 'liquid-glass';
+import { glassify } from '@zerocoder1/liquid-glass';
 
 // #topbar and .card are ordinary styled HTML already on the page
 const panels = glassify('#topbar, .card', {
@@ -106,7 +110,7 @@ plus the sheen/bevel/edge gradients. Read `glass.tier` to see what you got:
 ### 3. Web component
 
 ```js
-import { defineLiquidGlass } from 'liquid-glass/web-component';
+import { defineLiquidGlass } from '@zerocoder1/liquid-glass/web-component';
 defineLiquidGlass();               // registers <liquid-glass> once
 ```
 
@@ -124,7 +128,7 @@ an import side effect.
 ### 4. React
 
 ```jsx
-import { LiquidGlassView } from 'liquid-glass/react';
+import { LiquidGlassView } from '@zerocoder1/liquid-glass/react';
 
 <div ref={stageRef} style={{ position: 'relative' }}>
   <LiquidGlassView stage={stageRef} background="/bg.jpg"
@@ -139,7 +143,7 @@ React and react-dom are optional peer dependencies.
 ## API
 
 ```js
-import { LiquidGlass, glassify, detectDomCapabilities } from 'liquid-glass';
+import { LiquidGlass, glassify, detectDomCapabilities } from '@zerocoder1/liquid-glass';
 
 const glass = new LiquidGlass({
   stage,                 // container (default: document.body)
